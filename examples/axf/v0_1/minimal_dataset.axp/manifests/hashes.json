@@ -1,0 +1,10 @@
+{
+  "data/capsules.axc": "664510d01abe5a4b4b102eabde21dfedfba7d798ed33de97b742de91842cfbaa",
+  "data/relations.axr": "ccb7220c2254ea088faa9061bbc7abcede6fa60fa2e9b918e2c8893fa927cbda",
+  "data/sources.axsrc": "9a4be01c9580c13c08cde96b932cde1721a32475f33d30b610f6be5444e96aa7",
+  "manifests/construction_report.json": "fd050d19cb5255b786e1dc3b4f6ee5b79d693f3a02dd440c9233bdae8c6c4f38",
+  "manifests/leakage_report.json": "0133709159a2dbc70f1268366ea61986ee8a48a4a8b12bc7ebd7474641f75f10",
+  "splits/temporal_holdout.json": "746faec14179ad877e85e05594a5fb1991f09c69018b1c431831e45aed8b172d",
+  "splits/train.json": "01d39756e47c6adf2ff30eda95613ed9846ac78c5cd3132850910686641bd010",
+  "splits/validation.json": "d1987e34b8bd1bbe1add0bc38656e9d4638eb14256cf0ab22bc5b0d697a761d6"
+}

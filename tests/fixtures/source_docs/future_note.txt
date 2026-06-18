@@ -1,0 +1,1 @@
+A future source asserts that post-cutoff information should not enter capsules.
