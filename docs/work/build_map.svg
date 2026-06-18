@@ -1,0 +1,52 @@
+<svg viewBox="0 0 820 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Axiom v1 build map: six implementation plans</title>
+  <desc id="d">Built already: Steps 1–4. Remaining work is six implementation plans in four phases — data foundation (P1 substrate+corpus, P2 data interface+tensorizer), model (P3 model+conditioning, P4 learned geometry), train (P5 training loop+objectives), and measure/decide (P6 evaluation+falsification+decision).</desc>
+  <style>
+    :root{--ink:#1f2937;--muted:#6b7280;--pb:#d4d4d8;--done:#eef0f2;--ac:#2563eb;--acbg:#eaf1fe;}
+    @media (prefers-color-scheme:dark){
+      :root{--ink:#e5e7eb;--muted:#9aa3b2;--pb:#3a4150;--done:#232834;--ac:#60a5fa;--acbg:#18283f;}
+    }
+    text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;}
+    .box{font-size:11px;fill:var(--ink);}
+    .stage{font-size:11px;fill:var(--muted);font-weight:700;}
+    .ft{font-size:10px;fill:var(--muted);}
+  </style>
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 z" fill="var(--ac)"/>
+    </marker>
+  </defs>
+
+  <rect x="24" y="40" width="718" height="32" rx="9" fill="var(--done)" stroke="var(--pb)"/>
+  <text x="383" y="60" text-anchor="middle" class="box" fill="var(--muted)">Built ✓  Steps 1–4 — schema · substrate · AXF/AXC/AXP · falsification prep</text>
+
+  <text x="104" y="100" text-anchor="middle" class="stage">A · Data foundation</text>
+  <text x="290" y="100" text-anchor="middle" class="stage">B · Model</text>
+  <text x="476" y="100" text-anchor="middle" class="stage">C · Train</text>
+  <text x="662" y="100" text-anchor="middle" class="stage">D · Measure → decide</text>
+
+  <rect x="24" y="116" width="160" height="50" rx="8" fill="var(--acbg)" stroke="var(--ac)"/>
+  <text x="104" y="146" text-anchor="middle" class="box">P1 · Substrate + corpus</text>
+  <rect x="24" y="182" width="160" height="50" rx="8" fill="var(--acbg)" stroke="var(--ac)"/>
+  <text x="104" y="212" text-anchor="middle" class="box">P2 · Data interface</text>
+
+  <rect x="210" y="116" width="160" height="50" rx="8" fill="var(--acbg)" stroke="var(--ac)"/>
+  <text x="290" y="146" text-anchor="middle" class="box">P3 · Model + conditioning</text>
+  <rect x="210" y="182" width="160" height="50" rx="8" fill="var(--acbg)" stroke="var(--ac)"/>
+  <text x="290" y="212" text-anchor="middle" class="box">P4 · Learned geometry</text>
+
+  <rect x="396" y="149" width="160" height="50" rx="8" fill="var(--acbg)" stroke="var(--ac)"/>
+  <text x="476" y="179" text-anchor="middle" class="box">P5 · Training loop +</text>
+  <text x="476" y="193" text-anchor="middle" class="box">objectives</text>
+
+  <rect x="582" y="149" width="160" height="50" rx="8" fill="var(--acbg)" stroke="var(--ac)" stroke-width="2.4"/>
+  <text x="662" y="170" text-anchor="middle" class="box">P6 · Eval + falsification</text>
+  <text x="662" y="184" text-anchor="middle" class="box">+ decision report</text>
+
+  <line x1="184" y1="207" x2="208" y2="207" stroke="var(--ac)" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="370" y1="174" x2="394" y2="174" stroke="var(--ac)" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="556" y1="174" x2="580" y2="174" stroke="var(--ac)" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <text x="383" y="320" text-anchor="middle" class="ft">Each box = one implementation plan · arrows = build order · P1 also feeds P6 (gold sets) · P3+P4 run concurrently</text>
+  <text x="383" y="338" text-anchor="middle" class="ft">Scope rule: make every part real (no reductions), with sane defaults — don't fine-tune</text>
+</svg>
