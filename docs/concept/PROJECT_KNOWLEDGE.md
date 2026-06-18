@@ -19,7 +19,7 @@ The primary substrate preserves:
 - lateral context;
 - epistemic state;
 - target availability and loss masks;
-- optional gauge-invariant geometry.
+- nullable/maskable gauge-invariant geometry.
 
 Text is a projection and comparison interface, not the primary system boundary.
 

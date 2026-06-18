@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from hcaps.training import AxiomTrainer, TrainingConfig
@@ -40,6 +41,12 @@ def test_trainer_runs_one_step_and_writes_checkpoint(p6_compiled_axt: Path, tmp_
     assert result.checkpoint_path.exists()
     assert result.metrics_path.exists()
     assert (result.arm_dir / "predictions" / "raw_emission.jsonl").exists()
+    run_manifest = json.loads((result.run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    input_artifacts = run_manifest["input"]["artifacts"]
+    assert input_artifacts["axt_manifest"] == "input/axiom.json"
+    assert input_artifacts["dataset_hashes"] == "input/hashes.json"
+    assert (result.run_dir / input_artifacts["axt_manifest"]).exists()
+    assert (result.run_dir / input_artifacts["dataset_hashes"]).exists()
 
 
 def test_trainer_resume_preserves_step_and_rng_state(

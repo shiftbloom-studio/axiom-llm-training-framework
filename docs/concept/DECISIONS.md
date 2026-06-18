@@ -69,8 +69,8 @@ Accepted.
 ## ADR-0005: HKR geometry is experimental and ablatable
 
 Decision:
-Represent HKR/geometric values only as optional experimental gauge-invariant
-summaries.
+Represent HKR/geometric values only as nullable/maskable experimental
+gauge-invariant summaries.
 
 Rationale:
 The project tests whether HKR-inspired structure helps. It does not assume it is

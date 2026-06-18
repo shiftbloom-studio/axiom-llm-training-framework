@@ -109,6 +109,11 @@ def test_cli_p6_experiment_score_verdict_and_run_inspect(tmp_path: Path) -> None
     score = runner.invoke(app, ["score", "run", str(run_dir), "--json"])
     assert score.exit_code == 0, score.output
 
+    compare = runner.invoke(app, ["experiment", "compare", str(run_dir), "--json"])
+    assert compare.exit_code == 0, compare.output
+    assert (run_dir / "comparisons" / "pairwise_metrics.json").exists()
+    assert (run_dir / "comparisons" / "control_effects.json").exists()
+
     report = runner.invoke(app, ["verdict", "report", str(run_dir), "--json"])
     assert report.exit_code == 0, report.output
 

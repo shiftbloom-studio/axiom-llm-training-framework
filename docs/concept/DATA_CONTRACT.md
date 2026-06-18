@@ -43,7 +43,7 @@ Claim-state capsules must preserve:
 - provenance;
 - typed relations;
 - epistemic state;
-- optional gauge-invariant geometry observables;
+- nullable/maskable gauge-invariant geometry observables;
 - training eligibility and target declarations;
 - quality and lineage metadata.
 

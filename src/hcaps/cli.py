@@ -53,6 +53,7 @@ from hcaps.substrate.builder import build_substrate
 from hcaps.substrate.manifest import SubstrateBuildConfig
 from hcaps.training import AxiomTrainer, TrainingConfig
 from hcaps.training.checkpointing import load_training_checkpoint
+from hcaps.training.logging import write_json
 from hcaps.verdict import VerdictThresholds, generate_verdict, write_verdict_report
 from hcaps.verdict.report import inspect_verdict
 
@@ -745,6 +746,18 @@ def experiment_compare_command(
             "pairwise_metrics": pairwise_metric_deltas(result.scores),
             "control_effects": control_effects(result.scores),
         }
+        comparisons_dir = run_dir / "comparisons"
+        comparisons_dir.mkdir(parents=True, exist_ok=True)
+        pairwise = payload["pairwise_metrics"]
+        controls = payload["control_effects"]
+        write_json(
+            comparisons_dir / "pairwise_metrics.json",
+            pairwise if isinstance(pairwise, dict) else {},
+        )
+        write_json(
+            comparisons_dir / "control_effects.json",
+            controls if isinstance(controls, dict) else {},
+        )
     except Exception as exc:
         raise typer.BadParameter(str(exc)) from exc
     _print_payload(payload, json_output=json_output, title="Axiom P6 Compare")

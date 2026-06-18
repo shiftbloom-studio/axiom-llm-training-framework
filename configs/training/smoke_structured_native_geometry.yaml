@@ -29,6 +29,7 @@ geometry_loss_weight: 0.2
 control_transform: null
 text_mode: null
 geometry_config_path: configs/geometry/geometry_learned_smoke.yaml
+geometry_provider_kind: learned
 overwrite: true
 structured_loss_weights:
   structured_axc_out: 1.0

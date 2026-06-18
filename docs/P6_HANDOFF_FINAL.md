@@ -57,4 +57,4 @@ The smoke suite runs flat text, structured text, structured-native no-learned-ge
 
 ## Next Action
 
-Run the post-P6 project hardening and self-review pass.
+Review [work/POST_P6_HARDENING_AUDIT.md](work/POST_P6_HARDENING_AUDIT.md) and choose the next research-readiness or external-review work item.

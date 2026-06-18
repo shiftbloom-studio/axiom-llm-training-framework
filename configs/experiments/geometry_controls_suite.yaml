@@ -48,6 +48,7 @@ trainer_config_template:
   control_transform: null
   text_mode: null
   geometry_config_path: null
+  geometry_provider_kind: none
   overwrite: true
   structured_loss_weights:
     structured_axc_out: 1.0

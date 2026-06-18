@@ -4,7 +4,7 @@
 
 Axiom tests whether claim-field structure improves epistemic competence compared with flat text under matched source content, temporal cutoffs, splits, extraction substrate, parameter budgets, compute/FLOPs, and training schedules where applicable.
 
-The project remains LLM-compatible through text projection, token baselines, text-rendered arms, and secondary text losses. Its primary substrate is not a flat token stream. Its primary substrate is structured claim-field data: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, and optional gauge-invariant geometry.
+The project remains LLM-compatible through text projection, token baselines, text-rendered arms, and secondary text losses. Its primary substrate is not a flat token stream. Its primary substrate is structured claim-field data: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, and nullable/maskable gauge-invariant geometry.
 
 Text is a projection and comparison interface. AXC, AXT, and AXC-out are the primary structured interfaces.
 
@@ -22,10 +22,10 @@ Current repository status:
 - AXC-out now has a P4 raw emission path, P5 gauge-invariant geometry fields, P6 masked multi-objective losses, and separate raw/validated/interpreted/text scoring artifacts.
 - No benchmark or model-performance claim is made by this repository.
 
-The next action after P6 is:
+The next action after the P6 and post-P6 hardening passes is:
 
 ```text
-Run the post-P6 project hardening and self-review pass.
+Review docs/work/POST_P6_HARDENING_AUDIT.md and choose the next research-readiness or external-review work item.
 ```
 
 P1-P3 are substrate/interface/compiler work only. They do not train the model or produce an evaluation verdict.

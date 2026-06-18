@@ -743,7 +743,7 @@ ClaimFieldBlock:
   cross-attention to relation/provenance/neighborhood states
   gated MLP
   residual + norm
-  optional geometry feature conditioning
+  nullable/maskable geometry feature conditioning
   optional router modulation
 ```
 
@@ -817,7 +817,7 @@ The router should condition on:
 - provenance density;
 - temporal features;
 - provider disagreement;
-- optional geometry context.
+- nullable/maskable geometry context.
 
 ### 14.1 Router modes
 
@@ -1251,7 +1251,7 @@ Required tests:
 - required groups are mapped correctly;
 - masks are preserved;
 - time and lateral context remain separate;
-- missing optional geometry produces neutral geometry context.
+- missing record-level geometry produces neutral geometry context through masks.
 
 ### 26.3 Embedding tests
 

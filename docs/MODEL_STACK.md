@@ -35,7 +35,7 @@ The model consumes P3 runtime batches through `hcaps.axt`. It does not parse AXC
 
 ## Why It Is Not Stock CausalLM
 
-The stack uses attention, but attention runs over typed structured slots: claim identity, claim state, epistemic state, temporal scope, lateral context, provider context, provenance, relations, relation neighborhoods, negative samples, optional geometry features, and text-projection input.
+The stack uses attention, but attention runs over typed structured slots: claim identity, claim state, epistemic state, temporal scope, lateral context, provider context, provenance, relations, relation neighborhoods, negative samples, nullable/maskable geometry features, and text-projection input.
 
 The model does not serialize capsules to text and hand them to a stock causal LM. The native structured path emits AXC-out raw tensors, while the text head emits token logits for text-projection losses and text-rendered comparisons.
 
