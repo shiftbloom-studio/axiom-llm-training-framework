@@ -1,0 +1,9 @@
+schema_version: "0.1.0"
+contract:
+  capsule_model: hcaps.schema.capsule.HoloCapsule
+  manifest_model: hcaps.schema.manifest.DatasetManifest
+  require_timezone_aware_timestamps: true
+  require_provenance: true
+  relation_types_are_enums: true
+  redundancy_measure: independent_community_effective_count
+  experimental_geometry_optional: true

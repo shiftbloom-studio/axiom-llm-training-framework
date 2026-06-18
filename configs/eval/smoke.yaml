@@ -1,0 +1,8 @@
+enabled: false
+reason: "Evaluation harness is intentionally out of scope for Step 1."
+future_arms:
+  - flat_text_baseline
+  - structured_text_baseline
+  - holocapsule_text_only
+  - holocapsule_side_channels
+  - context_shuffled_ablation

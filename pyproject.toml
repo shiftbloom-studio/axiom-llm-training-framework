@@ -1,0 +1,91 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "holocapsule-llm-training"
+version = "0.1.0"
+description = "HoloCapsule Claim-Field Pretraining research repository."
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "Proprietary research codebase; license TBD." }
+authors = [{ name = "HoloCapsule contributors" }]
+dependencies = [
+  "orjson>=3.10.18",
+  "polars>=1.31.0",
+  "pyarrow>=20.0.0",
+  "pydantic>=2.11.0",
+  "pydantic-settings>=2.9.0",
+  "pyyaml>=6.0.2",
+  "rich>=14.0.0",
+  "typer>=0.16.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.16.0",
+  "pre-commit>=4.2.0",
+  "pytest>=8.4.0",
+  "pytest-cov>=6.2.0",
+  "ruff>=0.12.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hcaps"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["hcaps"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "B",
+  "C4",
+  "E",
+  "F",
+  "I",
+  "N",
+  "PL",
+  "PYI",
+  "RUF",
+  "SIM",
+  "UP",
+  "W",
+]
+ignore = [
+  "PLR0913",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR2004"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+mypy_path = "src"
+packages = ["hcaps"]
+warn_unreachable = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true

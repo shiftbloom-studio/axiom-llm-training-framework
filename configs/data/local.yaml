@@ -1,0 +1,9 @@
+dataset:
+  name: local-smoke
+  version: "0.1.0"
+paths:
+  capsules_jsonl: tests/fixtures/valid_capsules.jsonl
+  manifests_dir: artifacts/manifests
+storage:
+  canonical_format: jsonl
+  parquet_nested_policy: record_json_sidecar
