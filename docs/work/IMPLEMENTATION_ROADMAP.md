@@ -2,7 +2,7 @@
 
 **Status:** consolidated six-program roadmap
 **Target:** full structured-native LLM training framework v1
-**Current next action:** post-P6 project hardening and self-review
+**Current next action:** review the post-P6 hardening audit and choose the next research-readiness or external-review work item
 **Roadmap style:** all-or-nothing implementation programs; no standalone validation, test, cleanup, or documentation phases
 
 ---
@@ -11,7 +11,7 @@
 
 This roadmap is the current implementation source of truth for completing Axiom v1.
 
-Axiom is a **structured-native LLM training framework**. It remains LLM-compatible through text projection, token baselines, text-rendered arms, and secondary text losses, but its primary substrate is not a flat token stream. Its primary substrate is structured claim-field data: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, provider traces, negative pools, and optional gauge-invariant geometry.
+Axiom is a **structured-native LLM training framework**. It remains LLM-compatible through text projection, token baselines, text-rendered arms, and secondary text losses, but its primary substrate is not a flat token stream. Its primary substrate is structured claim-field data: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, provider traces, negative pools, and nullable/maskable gauge-invariant geometry.
 
 The v1 implementation goal is not to build another wrapper around a standard token-in/token-out causal language model. The goal is to build a small but real structured-native model stack that can ingest Axiom structure, compute over it, emit structured AXC-out, and project to text for comparability.
 
@@ -711,7 +711,7 @@ P4 and P5 may be developed concurrently after P3, but P6 must not begin until th
 | **P3 AXT Compiler & Runtime Data Interface** | ✅ implementation-complete | Handoff to P4/P5/P6 |
 | **P4 Structured-Native Model Stack** | ✅ implementation-complete | Handoff to P5/P6 |
 | **P5 Learned Geometry & Claim-Field Graph Dynamics** | ✅ implementation-complete | Consumed by P6 |
-| **P6 Training, Experiments, Verdict & Operator Runtime** | ✅ implementation-complete | Run post-P6 hardening/self-review |
+| **P6 Training, Experiments, Verdict & Operator Runtime** | ✅ implementation-complete | Review post-P6 hardening audit |
 
 ---
 
@@ -759,8 +759,7 @@ Do not create standalone “validation steps.” Testing and documentation are p
 The next agent should execute:
 
 ```text
-PLAN 6 — Training, Experiments, Verdict & Operator Runtime
+Review docs/work/POST_P6_HARDENING_AUDIT.md and choose the next research-readiness or external-review work item.
 ```
 
-P6 must train and compare the P4/P5-compatible system without external LLM calls,
-truth labels, temporal leakage, or overclaiming the verdict.
+Do not re-run a completed implementation program unless the owner explicitly asks for a revision. New work should preserve structured-native model I/O, native ablatable geometry, AXC-out, secondary text projection, provider data-construction boundaries, masked targets, negative sampling, and conservative research claims.

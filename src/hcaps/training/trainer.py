@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -339,6 +340,7 @@ class AxiomTrainer:
         checkpoint_path: Path,
     ) -> Path:
         repo_root = Path.cwd()
+        input_artifacts = self._write_input_artifacts()
         arm_manifest = {
             "run_id": self.config.run_id(),
             "arm_id": self.config.arm_name,
@@ -369,6 +371,7 @@ class AxiomTrainer:
             "input": {
                 "axt_path": str(self.config.input_axt_path),
                 "axt_manifest_hash": axt_manifest_hash(self.config.input_axt_path),
+                "artifacts": input_artifacts,
             },
             "environment": environment_summary(),
             "git_state": git_state_summary(repo_root),
@@ -387,6 +390,28 @@ class AxiomTrainer:
         write_json(self.config.run_dir() / "environment.json", environment_summary())
         write_json(self.config.run_dir() / "git_state.json", git_state_summary(repo_root))
         return arm_manifest_path
+
+    def _write_input_artifacts(self) -> dict[str, str]:
+        input_dir = self.config.run_dir() / "input"
+        input_dir.mkdir(parents=True, exist_ok=True)
+        copied: dict[str, str] = {}
+        sources = {
+            "axt_manifest": self.config.input_axt_path / "axiom.json",
+            "dataset_hashes": self.config.input_axt_path / "manifests" / "hashes.json",
+            "source_index": self.config.input_axt_path / "manifests" / "source_index.json",
+            "tensor_manifest": self.config.input_axt_path / "manifests" / "tensor_manifest.json",
+            "mask_report": self.config.input_axt_path / "reports" / "mask_report.json",
+            "missing_target_report": self.config.input_axt_path
+            / "reports"
+            / "missing_target_report.json",
+        }
+        for name, source in sources.items():
+            if not source.exists():
+                continue
+            target = input_dir / source.name
+            shutil.copy2(source, target)
+            copied[name] = str(target.relative_to(self.config.run_dir()))
+        return copied
 
 
 def _apply_curriculum(loss: torch.Tensor, multipliers: dict[str, float]) -> torch.Tensor:

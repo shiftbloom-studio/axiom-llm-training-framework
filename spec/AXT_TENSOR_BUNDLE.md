@@ -46,7 +46,7 @@ AXT input tensors may include:
 - evidence-span pointer inputs;
 - epistemic scalar tensors;
 - side-channel tensors;
-- optional gauge-invariant geometry feature tensors.
+- nullable/maskable gauge-invariant geometry feature tensors.
 
 ## Target Tensor Families
 

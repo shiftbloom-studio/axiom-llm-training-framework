@@ -25,6 +25,7 @@ Axiom is a structured-native LLM training framework. The canonical concept, deci
 17. [work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](work/P3_AXT_COMPILER_HANDOFF_TO_P4.md) - P3 handoff consumed by P4/P5/P6.
 18. [work/P2_HANDOFF_TO_P3.md](work/P2_HANDOFF_TO_P3.md) - P2 handoff consumed by P3.
 19. [work/PRE_P1_DOCUMENTATION_AUDIT.md](work/PRE_P1_DOCUMENTATION_AUDIT.md) - record of the pre-P1 alignment pass.
+20. [work/POST_P6_HARDENING_AUDIT.md](work/POST_P6_HARDENING_AUDIT.md) - record of the post-P6 hardening pass.
 
 ## Active Folders
 
@@ -53,7 +54,7 @@ Historical files may contradict current terminology. When they do, follow:
 ## Current Next Action
 
 ```text
-Run the post-P6 project hardening and self-review pass.
+Review work/POST_P6_HARDENING_AUDIT.md and choose the next research-readiness or external-review work item.
 ```
 
 Do not start new work from archived Plan 1/Plan 2 documents. They are historical drafts from the old roadmap shape.
