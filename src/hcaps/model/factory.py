@@ -105,6 +105,10 @@ class AxiomStructuredModel(nn.Module):
             auxiliary_logits={
                 "head_weights": router_output.head_weights,
                 **router_output.loss_term_weights,
+                **{
+                    f"geometry_regularizer_{name}": value
+                    for name, value in (geometry_context.regularizer_terms or {}).items()
+                },
             },
             router_diagnostics=router_output.diagnostics,
             geometry_diagnostics=geometry_context.diagnostics,

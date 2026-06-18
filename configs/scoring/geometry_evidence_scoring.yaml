@@ -1,0 +1,11 @@
+score_levels:
+  - raw_emission
+  - validated_axc_out
+  - interpreted_projection
+geometry_metrics:
+  - geometry_on_minus_off_delta
+  - context_shuffle_degradation
+  - provider_shuffle_degradation
+  - geometry_signal_vs_popularity_control
+  - transport_consistency_score
+external_llm_judging_allowed: false

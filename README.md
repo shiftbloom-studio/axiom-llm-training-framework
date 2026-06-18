@@ -18,14 +18,14 @@ Current repository status:
 - P3 implements the AXT compiler, safetensors bundle writer/reader, runtime dataset/batch interface, inspection/validation CLI, provider-context tensors, negative-sample tensors, relation neighborhoods, geometry slots, text projection tensors, targets, and masks.
 - P4 implements the first torch-native structured model stack: typed AXT input adapter, field embeddings, structured encoder, relation/provenance/provider/context conditioning, full-complexity core, epistemic router, structured decoder, AXC-out raw emission boundary, text projection head, geometry hooks, ablations, diagnostics, serialization, and model developer CLI.
 - P5 implements the torch-native learned claim-field geometry module: graph batches, lateral context transitions, learned skew connections, matrix-exp transport, bounded loop sampling, gauge-invariant observables, regularizers, controls, P4 integration, reference checks, configs, CLI, and tests.
-- AXC-out now has a P4 raw emission path and P5 gauge-invariant geometry fields. Final scoring and training losses are not complete.
-- The multi-objective training runtime and evaluation verdict are not complete.
+- P6 implements the local training, experiment orchestration, scoring, verdict, and operator runtime for smoke and mini-run configurations.
+- AXC-out now has a P4 raw emission path, P5 gauge-invariant geometry fields, P6 masked multi-objective losses, and separate raw/validated/interpreted/text scoring artifacts.
 - No benchmark or model-performance claim is made by this repository.
 
-The next implementation action is:
+The next action after P6 is:
 
 ```text
-Implement P6: Training, Experiments, Verdict & Operator Runtime.
+Run the post-P6 project hardening and self-review pass.
 ```
 
 P1-P3 are substrate/interface/compiler work only. They do not train the model or produce an evaluation verdict.
@@ -183,6 +183,17 @@ axiom falsify report \
 
 These commands prepare and inspect data artifacts. They do not train the v1 model and do not produce an evaluation verdict.
 
+Run the P6 smoke experiment runtime:
+
+```bash
+axiom experiment run configs/experiments/smoke_suite.yaml
+axiom verdict report runs/p6_smoke_suite \
+  --output runs/p6_smoke_suite/verdict/report.md
+axiom run inspect runs/p6_smoke_suite
+```
+
+The smoke suite is a runtime check. It writes checkpoints, metrics, predictions, fairness reports, scores, and a verdict report, but it is not a benchmark or scale-up result.
+
 ## v1 Roadmap
 
 Axiom v1 is organized as six implementation programs in the current roadmap. Validation, tests, documentation, fixtures, manifests, and quality gates are done criteria inside each program, not separate roadmap phases.
@@ -232,6 +243,11 @@ Start with:
 - [docs/work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](docs/work/P3_AXT_COMPILER_HANDOFF_TO_P4.md)
 - [docs/MODEL_STACK.md](docs/MODEL_STACK.md)
 - [docs/GEOMETRY_MODULE.md](docs/GEOMETRY_MODULE.md)
+- [docs/TRAINING_RUNTIME.md](docs/TRAINING_RUNTIME.md)
+- [docs/EXPERIMENT_ORCHESTRATOR.md](docs/EXPERIMENT_ORCHESTRATOR.md)
+- [docs/SCORING_AND_VERDICT.md](docs/SCORING_AND_VERDICT.md)
+- [docs/OPERATOR_RUNTIME.md](docs/OPERATOR_RUNTIME.md)
+- [docs/P6_HANDOFF_FINAL.md](docs/P6_HANDOFF_FINAL.md)
 - [docs/work/P4_HANDOFF_TO_P5.md](docs/work/P4_HANDOFF_TO_P5.md)
 - [docs/work/P4_HANDOFF_TO_P6.md](docs/work/P4_HANDOFF_TO_P6.md)
 - [docs/work/P5_HANDOFF_TO_P6.md](docs/work/P5_HANDOFF_TO_P6.md)

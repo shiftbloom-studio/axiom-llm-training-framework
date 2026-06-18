@@ -23,6 +23,9 @@ from hcaps.axt.inspect import compare_axt_bundles, inspect_axt_bundle, inspect_t
 from hcaps.corpus.builder import build_corpus
 from hcaps.corpus.gold import export_gold_candidates
 from hcaps.corpus.manifest import load_corpus_build_config
+from hcaps.experiments.comparison import control_effects, pairwise_metric_deltas
+from hcaps.experiments.configs import ExperimentSuiteConfig
+from hcaps.experiments.orchestrator import ExperimentOrchestrator
 from hcaps.falsification.audits import audit_input_capsules, findings_to_dicts, summarize_findings
 from hcaps.falsification.reports import write_falsification_report
 from hcaps.falsification.runner import (
@@ -41,11 +44,17 @@ from hcaps.geometry.cli import (
 )
 from hcaps.model import AxiomModelConfig, AxiomStructuredModel
 from hcaps.model.parameter_count import parameter_count
+from hcaps.operator import export_run, inspect_run, list_runs
 from hcaps.providers.cache import ProviderCache
 from hcaps.providers.config import load_provider_ingress_config
+from hcaps.scoring import score_run
 from hcaps.store.jsonl import JsonlCapsuleStore
 from hcaps.substrate.builder import build_substrate
 from hcaps.substrate.manifest import SubstrateBuildConfig
+from hcaps.training import AxiomTrainer, TrainingConfig
+from hcaps.training.checkpointing import load_training_checkpoint
+from hcaps.verdict import VerdictThresholds, generate_verdict, write_verdict_report
+from hcaps.verdict.report import inspect_verdict
 
 app = typer.Typer(help="Axiom claim-field substrate tools.")
 format_app = typer.Typer(help="AXF/AXC format commands.")
@@ -58,6 +67,11 @@ corpus_gold_app = typer.Typer(help="Human-review candidate exports.")
 axt_app = typer.Typer(help="AXT tensor bundle compiler and runtime interface commands.")
 model_app = typer.Typer(help="Structured-native model stack developer commands.")
 geometry_app = typer.Typer(help="Learned geometry developer commands.")
+train_app = typer.Typer(help="P6 training runtime commands.")
+experiment_app = typer.Typer(help="P6 experiment suite commands.")
+score_app = typer.Typer(help="P6 scoring commands.")
+verdict_app = typer.Typer(help="P6 verdict commands.")
+run_app = typer.Typer(help="P6 operator run inspection/export commands.")
 app.add_typer(format_app, name="format")
 app.add_typer(package_app, name="package")
 app.add_typer(falsify_app, name="falsify")
@@ -65,6 +79,11 @@ app.add_typer(corpus_app, name="corpus")
 app.add_typer(axt_app, name="axt")
 app.add_typer(model_app, name="model")
 app.add_typer(geometry_app, name="geometry")
+app.add_typer(train_app, name="train")
+app.add_typer(experiment_app, name="experiment")
+app.add_typer(score_app, name="score")
+app.add_typer(verdict_app, name="verdict")
+app.add_typer(run_app, name="run")
 corpus_app.add_typer(corpus_providers_app, name="providers")
 corpus_app.add_typer(corpus_cache_app, name="cache")
 corpus_app.add_typer(corpus_gold_app, name="gold")
@@ -571,6 +590,274 @@ def geometry_smoke_command(
     except Exception as exc:
         raise typer.BadParameter(str(exc)) from exc
     _print_payload(payload, json_output=json_output, title="Axiom Geometry Smoke")
+
+
+@train_app.command("run")
+def train_run_command(
+    config_path: Annotated[Path, typer.Argument(help="P6 training YAML config path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Run one P6 training arm from an AXT bundle."""
+
+    try:
+        result = AxiomTrainer(TrainingConfig.from_yaml(config_path)).fit()
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    payload = {
+        "run_id": result.run_id,
+        "arm_id": result.arm_id,
+        "run_dir": str(result.run_dir),
+        "checkpoint": str(result.checkpoint_path),
+        "metrics": str(result.metrics_path),
+        "manifest": str(result.manifest_path),
+        "final_step": result.final_step,
+    }
+    _print_payload(payload, json_output=json_output, title="Axiom P6 Training")
+
+
+@train_app.command("resume")
+def train_resume_command(
+    checkpoint_path: Annotated[Path, typer.Argument(help="P6 training checkpoint path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Resume a P6 training arm from a checkpoint that carries its config."""
+
+    try:
+        payload = load_training_checkpoint(checkpoint_path)
+        config_payload = payload.get("training_config")
+        if not isinstance(config_payload, dict):
+            raise ValueError("checkpoint does not contain a replayable training_config")
+        config = TrainingConfig.model_validate(config_payload).model_copy(
+            update={"resume_from": checkpoint_path, "overwrite": True}
+        )
+        result = AxiomTrainer(config).fit()
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(
+        {
+            "run_id": result.run_id,
+            "arm_id": result.arm_id,
+            "resumed_from": str(checkpoint_path),
+            "final_step": result.final_step,
+        },
+        json_output=json_output,
+        title="Axiom P6 Resume",
+    )
+
+
+@train_app.command("inspect")
+def train_inspect_command(
+    run_dir: Annotated[Path, typer.Argument(help="P6 run directory.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Inspect a P6 training run directory."""
+
+    try:
+        payload = inspect_run(run_dir)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom P6 Run")
+
+
+@experiment_app.command("plan")
+def experiment_plan_command(
+    config_path: Annotated[Path, typer.Argument(help="P6 experiment suite YAML config path.")],
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", help="Optional copy of the expanded plan JSON."),
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Expand a P6 experiment suite without training arms."""
+
+    try:
+        plan = ExperimentOrchestrator(ExperimentSuiteConfig.from_yaml(config_path)).prepare()
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(plan.plan_path.read_bytes())
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(
+        {
+            "run_id": plan.run_id,
+            "run_dir": str(plan.run_dir),
+            "arms": [arm.arm_id for arm in plan.arms],
+            "plan_path": str(plan.plan_path),
+        },
+        json_output=json_output,
+        title="Axiom P6 Experiment Plan",
+    )
+
+
+@experiment_app.command("run")
+def experiment_run_command(
+    config_path: Annotated[Path, typer.Argument(help="P6 experiment suite YAML config path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Run a P6 experiment suite sequentially without external services."""
+
+    try:
+        result = ExperimentOrchestrator(ExperimentSuiteConfig.from_yaml(config_path)).run()
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(
+        {
+            "run_id": result.run_id,
+            "run_dir": str(result.run_dir),
+            "arms": list(result.arm_results),
+            "scores": str(result.scoring_result.scores_path),
+            "verdict": str(result.verdict_path),
+            "fairness_report": str(result.fairness_report_path),
+        },
+        json_output=json_output,
+        title="Axiom P6 Experiment Run",
+    )
+
+
+@experiment_app.command("score")
+def experiment_score_command(
+    run_dir: Annotated[Path, typer.Argument(help="P6 run directory.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Score a completed P6 run."""
+
+    try:
+        result = score_run(run_dir)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(
+        {"run_dir": str(result.run_dir), "scores_path": str(result.scores_path)},
+        json_output=json_output,
+        title="Axiom P6 Score",
+    )
+
+
+@experiment_app.command("compare")
+def experiment_compare_command(
+    run_dir: Annotated[Path, typer.Argument(help="P6 run directory.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON comparison.")] = False,
+) -> None:
+    """Compute pairwise metrics and control effects for a scored P6 run."""
+
+    try:
+        result = score_run(run_dir)
+        payload: dict[str, object] = {
+            "pairwise_metrics": pairwise_metric_deltas(result.scores),
+            "control_effects": control_effects(result.scores),
+        }
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom P6 Compare")
+
+
+@score_app.command("run")
+def score_run_command(
+    run_dir: Annotated[Path, typer.Argument(help="P6 run directory.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Score all P6 arms in a run directory."""
+
+    try:
+        result = score_run(run_dir)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(result.scores, json_output=json_output, title="Axiom P6 Scores")
+
+
+@verdict_app.command("report")
+def verdict_report_command(
+    run_dir: Annotated[Path, typer.Argument(help="P6 run directory.")],
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", help="Markdown verdict report output path."),
+    ] = None,
+    config_path: Annotated[
+        Path | None,
+        typer.Option("--config", help="Optional verdict thresholds YAML."),
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Generate a P6 verdict report from scored artifacts."""
+
+    try:
+        scores = score_run(run_dir).scores
+        fairness_path = run_dir / "comparisons" / "fairness_report.json"
+        fairness = json.loads(fairness_path.read_text("utf-8")) if fairness_path.exists() else {}
+        thresholds = VerdictThresholds.from_yaml(config_path) if config_path is not None else None
+        verdict = generate_verdict(scores, fairness_report=fairness, thresholds=thresholds)
+        report_path = write_verdict_report(run_dir, verdict=verdict, output=output)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(
+        {
+            "run_dir": str(run_dir),
+            "report": str(report_path),
+            "overall": verdict["overall_verdict"],
+        },
+        json_output=json_output,
+        title="Axiom P6 Verdict",
+    )
+
+
+@verdict_app.command("inspect")
+def verdict_inspect_command(
+    verdict_path: Annotated[Path, typer.Argument(help="P6 verdict JSON path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON verdict.")] = False,
+) -> None:
+    """Inspect a P6 verdict JSON file."""
+
+    try:
+        payload = inspect_verdict(verdict_path)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom P6 Verdict Inspect")
+
+
+@run_app.command("inspect")
+def run_inspect_command(
+    run_dir: Annotated[Path, typer.Argument(help="P6 run directory.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Inspect a P6 run directory."""
+
+    try:
+        payload = inspect_run(run_dir)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom P6 Run")
+
+
+@run_app.command("export")
+def run_export_command(
+    run_dir: Annotated[Path, typer.Argument(help="P6 run directory.")],
+    output: Annotated[Path, typer.Option("--output", help="Reproducibility bundle path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Export a P6 reproducibility bundle."""
+
+    try:
+        exported = export_run(run_dir, output=output)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(
+        {"run_dir": str(run_dir), "export": str(exported)},
+        json_output=json_output,
+        title="Axiom P6 Export",
+    )
+
+
+@run_app.command("list")
+def run_list_command(
+    runs_dir: Annotated[Path, typer.Argument(help="Directory containing P6 runs.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summaries.")] = False,
+) -> None:
+    """List P6 run directories."""
+
+    try:
+        payload: dict[str, object] = {"runs": list_runs(runs_dir)}
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom P6 Runs")
 
 
 @format_app.command("validate")

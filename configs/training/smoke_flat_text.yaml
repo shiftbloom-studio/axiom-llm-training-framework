@@ -1,0 +1,59 @@
+run_name: p6_smoke_train
+seed: 13
+input_axt_path: artifacts/axt/minimal_smoke.axt
+output_dir: runs
+model_config_path: configs/model/structured_native_smoke.yaml
+arm_name: A_flat_text
+train_split: null
+validation_split: null
+max_steps: 2
+max_epochs: 1
+global_batch_size: 2
+micro_batch_size: 2
+gradient_accumulation_steps: 1
+learning_rate: 0.001
+weight_decay: 0.0
+optimizer: adamw
+scheduler: none
+warmup_steps: 0
+cooldown_steps: 0
+clip_grad_norm: 1.0
+precision: fp32
+checkpoint_interval: 1
+eval_interval: 1
+log_interval: 1
+save_optimizer_state: true
+resume_from: null
+text_projection_loss_weight: 0.2
+geometry_loss_weight: 0.0
+control_transform: null
+text_mode: flat_text
+geometry_config_path: null
+overwrite: true
+structured_loss_weights:
+  structured_axc_out: 1.0
+  relation_prediction: 1.0
+  provenance_recovery: 1.0
+  epistemic_proxy: 1.0
+  stability_temporal: 1.0
+  uncertainty_calibration: 0.5
+  geometry_observables: 0.0
+  geometry_regularization: 0.0
+  text_projection: 0.2
+curriculum_config:
+  schedule_name: none
+  phase_boundaries: [0, 10, 25, 50, 75, 100]
+  text_projection_weight_schedule: [1.0]
+  structured_loss_weight_schedule: [1.0]
+  relation_neighborhood_depth_schedule: [1]
+  side_channel_dropout_schedule: [0.0]
+  geometry_activation_schedule: [0.0]
+  context_dropout_schedule: [0.0]
+  negative_sample_hardness_schedule: [0.0]
+compute_budget_config:
+  max_train_steps: 2
+  max_records_seen: 8
+  max_wall_clock_seconds: 120.0
+  parameter_match_tolerance: 0.25
+  compute_match_tolerance: 0.25
+  estimate_flops: true

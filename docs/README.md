@@ -14,12 +14,17 @@ Axiom is a structured-native LLM training framework. The canonical concept, deci
 6. [concept/AXT_RUNTIME_DATA_INTERFACE.md](concept/AXT_RUNTIME_DATA_INTERFACE.md) - P3 AXT compiler/runtime interface.
 7. [MODEL_STACK.md](MODEL_STACK.md) - P4 structured-native model stack.
 8. [GEOMETRY_MODULE.md](GEOMETRY_MODULE.md) - P5 learned claim-field geometry.
-9. [work/P5_HANDOFF_TO_P6.md](work/P5_HANDOFF_TO_P6.md) - geometry handoff to training/evaluation.
-10. [work/P4_HANDOFF_TO_P5.md](work/P4_HANDOFF_TO_P5.md) - P4 geometry hook handoff consumed by P5.
-11. [work/P4_HANDOFF_TO_P6.md](work/P4_HANDOFF_TO_P6.md) - model/loss handoff.
-12. [work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](work/P3_AXT_COMPILER_HANDOFF_TO_P4.md) - P3 handoff consumed by P4/P5.
-13. [work/P2_HANDOFF_TO_P3.md](work/P2_HANDOFF_TO_P3.md) - P2 handoff consumed by P3.
-14. [work/PRE_P1_DOCUMENTATION_AUDIT.md](work/PRE_P1_DOCUMENTATION_AUDIT.md) - record of the pre-P1 alignment pass.
+9. [TRAINING_RUNTIME.md](TRAINING_RUNTIME.md) - P6 training runtime.
+10. [EXPERIMENT_ORCHESTRATOR.md](EXPERIMENT_ORCHESTRATOR.md) - P6 experiment arms and controls.
+11. [SCORING_AND_VERDICT.md](SCORING_AND_VERDICT.md) - P6 scoring and branch verdicts.
+12. [OPERATOR_RUNTIME.md](OPERATOR_RUNTIME.md) - P6 run inspection and export.
+13. [P6_HANDOFF_FINAL.md](P6_HANDOFF_FINAL.md) - final P6 handoff.
+14. [work/P5_HANDOFF_TO_P6.md](work/P5_HANDOFF_TO_P6.md) - geometry handoff consumed by P6.
+15. [work/P4_HANDOFF_TO_P5.md](work/P4_HANDOFF_TO_P5.md) - P4 geometry hook handoff consumed by P5.
+16. [work/P4_HANDOFF_TO_P6.md](work/P4_HANDOFF_TO_P6.md) - model/loss handoff.
+17. [work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](work/P3_AXT_COMPILER_HANDOFF_TO_P4.md) - P3 handoff consumed by P4/P5/P6.
+18. [work/P2_HANDOFF_TO_P3.md](work/P2_HANDOFF_TO_P3.md) - P2 handoff consumed by P3.
+19. [work/PRE_P1_DOCUMENTATION_AUDIT.md](work/PRE_P1_DOCUMENTATION_AUDIT.md) - record of the pre-P1 alignment pass.
 
 ## Active Folders
 
@@ -29,7 +34,7 @@ Axiom is a structured-native LLM training framework. The canonical concept, deci
 | [work/](work/) | Current roadmap and current work/audit records. |
 | [../spec/](../spec/) | AXF, AXC, AXP, AXT, and AXC-out specifications. |
 | [../examples/](../examples/) | Small AXF/AXC/AXP conformance fixtures. |
-| [../configs/](../configs/) | Smoke configs for corpus, AXT, model, and geometry runtimes. |
+| [../configs/](../configs/) | Smoke configs for corpus, AXT, model, geometry, training, experiments, scoring, and verdict runtimes. |
 
 ## Historical Material
 
@@ -48,7 +53,7 @@ Historical files may contradict current terminology. When they do, follow:
 ## Current Next Action
 
 ```text
-Implement P6: Training, Experiments, Verdict & Operator Runtime.
+Run the post-P6 project hardening and self-review pass.
 ```
 
 Do not start new work from archived Plan 1/Plan 2 documents. They are historical drafts from the old roadmap shape.
