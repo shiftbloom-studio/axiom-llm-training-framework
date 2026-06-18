@@ -1,0 +1,9 @@
+{
+  "builder": "synthetic-axf-conformance-fixture",
+  "builder_version": "0.1.0",
+  "capsules": 2,
+  "external_api_calls": 0,
+  "notes": [
+    "Created from synthetic text for executable AXF contract tests."
+  ]
+}

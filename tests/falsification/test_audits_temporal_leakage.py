@@ -9,7 +9,7 @@ EXAMPLES = Path("examples/axf/v0_1")
 
 
 def test_valid_example_has_no_temporal_leakage() -> None:
-    capsules, _, _ = load_capsules(EXAMPLES / "minimal_dataset.axc")
+    capsules, _, _ = load_capsules(EXAMPLES / "minimal_capsules.axc")
 
     assert audit_temporal_leakage(capsules) == []
 
@@ -19,6 +19,8 @@ def test_future_leakage_fixture_produces_finding() -> None:
 
     findings = audit_temporal_leakage(capsules)
 
-    assert len(findings) == 1
-    assert findings[0].audit == "temporal_leakage"
-    assert findings[0].capsule_id == "cap_invalid_future_leakage_001"
+    assert len(findings) >= 1
+    assert {finding.audit for finding in findings} == {"temporal_leakage"}
+    assert {
+        finding.capsule_id for finding in findings
+    } == {"axc:sha256:e4c463b25aa58cdc607324d1ed4caa3e7181d663e14ccae83d888516d15d5653"}

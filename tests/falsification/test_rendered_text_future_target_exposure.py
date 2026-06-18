@@ -14,7 +14,7 @@ EXAMPLES = Path("examples/axf/v0_1")
 
 
 def test_predictor_renderers_do_not_expose_future_target_fields() -> None:
-    capsules, _, _ = load_capsules(EXAMPLES / "minimal_dataset.axc")
+    capsules, _, _ = load_capsules(EXAMPLES / "minimal_capsules.axc")
     rendered = []
     for capsule in capsules:
         rendered.extend(

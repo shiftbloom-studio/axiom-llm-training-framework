@@ -1,0 +1,5 @@
+{
+  "checked": true,
+  "policy": "predictor_side_sources_must_not_exceed_valid_as_of",
+  "violations": []
+}

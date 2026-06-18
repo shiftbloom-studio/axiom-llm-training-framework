@@ -1,0 +1,8 @@
+{
+  "title": "Future Fixture Note",
+  "authors": ["Axiom Test"],
+  "publication_date": "2030-01-01",
+  "license": "fixture",
+  "domain": ["future"],
+  "temporal_cutoff": "2031-01-01"
+}

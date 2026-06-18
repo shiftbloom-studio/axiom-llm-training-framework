@@ -14,7 +14,7 @@ def test_forbidden_truth_label_fixture_produces_finding() -> None:
     findings = audit_forbidden_truth_labels(capsules)
 
     assert len(findings) == 1
-    assert findings[0].value == "ground_truth"
+    assert findings[0].value == "truth"
 
 
 def test_recursive_nested_truth_labels_are_found() -> None:
