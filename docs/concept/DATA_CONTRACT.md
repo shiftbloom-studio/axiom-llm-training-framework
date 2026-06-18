@@ -1,6 +1,6 @@
 # Data Contract
 
-Status: Current | Updated: 2026-06-18 | See: [CONCEPT.md](CONCEPT.md), [../../spec/AXF.md](../../spec/AXF.md)
+Status: Current | Updated: 2026-06-18 | See: [CONCEPT.md](CONCEPT.md), [../../spec/AXF_V1.md](../../spec/AXF_V1.md)
 
 Axiom records claim-state capsules, not truth-labeled text examples.
 
@@ -21,6 +21,16 @@ provider cache manifests, extraction traces, provider disagreements, source
 registries, relation candidates, negative pools, gold-reference candidates,
 license reports, quality reports, and context side streams. These are
 construction metadata, not model output.
+
+P2 locks the v1 contract in:
+
+- [../../spec/AXF_V1.md](../../spec/AXF_V1.md)
+- [../../spec/AXC_V1_CAPSULE_SCHEMA.md](../../spec/AXC_V1_CAPSULE_SCHEMA.md)
+- [../../spec/AXP_V1_PACKAGE_LAYOUT.md](../../spec/AXP_V1_PACKAGE_LAYOUT.md)
+- [../../spec/AXT_V1_TENSOR_BUNDLE.md](../../spec/AXT_V1_TENSOR_BUNDLE.md)
+- [../../spec/AXC_OUT_V1_SCHEMA.md](../../spec/AXC_OUT_V1_SCHEMA.md)
+- [../../spec/FIELD_REGISTRY_V1.md](../../spec/FIELD_REGISTRY_V1.md)
+- [../../spec/VOCABULARY_REGISTRY_V1.md](../../spec/VOCABULARY_REGISTRY_V1.md)
 
 ## Claim-State Capsule Fields
 
@@ -94,14 +104,15 @@ AXT must include both input tensors and target/output tensors. It must include e
 
 ```text
 loss_mask_text_projection
-loss_mask_relation
-loss_mask_provenance
-loss_mask_evidence_span
-loss_mask_stability
-loss_mask_uncertainty
+loss_mask_relation_prediction
+loss_mask_provenance_recovery
+loss_mask_stability_prediction
+loss_mask_uncertainty_calibration
 loss_mask_future_summary
-loss_mask_geometry
-loss_mask_context_transport
+loss_mask_temporal_prediction
+loss_mask_geometry_observables
+loss_mask_provider_context
+loss_mask_negative_sampling
 ```
 
 ## AXC-out Requirements

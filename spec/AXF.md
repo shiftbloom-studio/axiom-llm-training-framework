@@ -1,5 +1,9 @@
 # AXF v0.1: Axiom Exchange Format
 
+Status: v0.1 compatibility reference. The current v1 semantic contract is
+[AXF_V1.md](AXF_V1.md), with P3 handoff details in
+[../docs/work/P2_HANDOFF_TO_P3.md](../docs/work/P2_HANDOFF_TO_P3.md).
+
 AXF, the Axiom Exchange Format, is the public format family for claim-centric
 LLM pretraining data. AXF represents claim-states rather than documents,
 instruction examples, or binary truth labels.

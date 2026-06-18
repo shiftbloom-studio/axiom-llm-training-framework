@@ -1,6 +1,6 @@
 # Training Bridge
 
-Status: Current | Updated: 2026-06-18 | See: [DATA_CONTRACT.md](DATA_CONTRACT.md), [../../spec/AXT_TENSOR_BUNDLE.md](../../spec/AXT_TENSOR_BUNDLE.md)
+Status: Current | Updated: 2026-06-18 | See: [DATA_CONTRACT.md](DATA_CONTRACT.md), [../../spec/AXT_V1_TENSOR_BUNDLE.md](../../spec/AXT_V1_TENSOR_BUNDLE.md)
 
 The current training bridge is a lightweight infrastructure layer. It renders claim-state capsules into text comparison arms, tokenizes them with a baseline tokenizer, builds side-channel vectors, and records manifests.
 
@@ -18,7 +18,7 @@ These are text-rendered arms. They are useful for baselines and text projection.
 
 ## Future AXT Compiler
 
-P3 must implement the production AXT compiler. AXT must include:
+P3 must implement the production AXT compiler from [../work/P2_HANDOFF_TO_P3.md](../work/P2_HANDOFF_TO_P3.md). AXT must include:
 
 - input tensors;
 - target/output tensors;
