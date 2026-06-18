@@ -1,285 +1,77 @@
 # Axiom
 
-**Experimental LLM training framework for claim-centric pretraining and structured epistemic data substrates beyond flat token streams.**
+**Axiom is a structured-native LLM training framework.**
 
-Axiom is an open-source research framework for building, training, and evaluating language models on structured knowledge substrates instead of plain, unannotated token streams.
+Axiom tests whether claim-field structure improves epistemic competence compared with flat text under matched source content, temporal cutoffs, splits, extraction substrate, parameter budgets, compute/FLOPs, and training schedules where applicable.
 
-The central idea is simple: modern LLMs are usually pretrained on flattened documents, while the actual structure of knowledge is richer. Scientific and technical knowledge is made of claims, evidence, contradictions, provenance, uncertainty, temporal drift, redundancy, and context-dependent interpretation. Axiom turns these structures into first-class training data.
+The project remains LLM-compatible through text projection, token baselines, text-rendered arms, and secondary text losses. Its primary substrate is not a flat token stream. Its primary substrate is structured claim-field data: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, and optional gauge-invariant geometry.
 
-The project explores whether LLM pretraining can become more data-efficient, better calibrated, more provenance-aware, and more robust at scientific reasoning by exposing this structure directly to the training pipeline.
-
----
+Text is a projection and comparison interface. AXC, AXT, and AXC-out are the primary structured interfaces.
 
 ## Status
 
-Axiom is an early-stage research framework.
+Current repository status:
 
-It is intended to become a real training stack, not a toy demo. The first milestone is a strict data contract, reproducible storage layer, and falsification-first evaluation pipeline. Model training components are built only after the substrate is validated and versioned.
+- Foundation, substrate, AXF/AXC/AXP format support, a lightweight training bridge, and falsification-preparation artifacts exist.
+- AXT is specified as the tensor bridge, but the production AXT compiler is not complete.
+- AXC-out is specified as the future structured model emission format, but the runtime decoder/interpreter is not complete.
+- The v1 structured-native model, learned geometry module, multi-objective training runtime, and evaluation verdict are not complete.
+- No benchmark or model-performance claim is made by this repository.
 
-APIs, schemas, and package names may change before the first stable release.
-
----
-
-## Why this project exists
-
-Most pretraining pipelines transform documents like this:
+The next implementation action is:
 
 ```text
-raw document -> cleaned text -> token sequence -> next-token prediction
+Create Implementation Plan P1: Claim-Field Corpus & Provider Ingress.
 ```
 
-Axiom starts from a different assumption:
+This documentation alignment pass is pre-P1. It is not P1.
 
-```text
-raw documents
-  -> normalized sources
-  -> claims
-  -> claim families
-  -> provenance-aware claim capsules
-  -> training streams and side-channel tensors
-  -> model training and falsification
-```
+## Format Family
 
-The goal is not to replace next-token prediction. The goal is to augment it with structured signals that are normally implicit, noisy, or lost during preprocessing.
+| Format | Meaning | Role |
+|---|---|---|
+| AXF | Axiom Exchange Format | Public claim-field format family |
+| AXC | Axiom Capsule Stream | Claim-state capsule stream |
+| AXP | Axiom Package | Dataset package with manifests, hashes, splits, sources, capsules, and reports |
+| AXT | Axiom Tensor Bundle | Model-facing tensor bridge with input and target tensors |
+| AXC-out | Axiom structured emission | Native structured model output before text projection |
 
-A model should not only learn that a sentence is likely. It should also learn whether the sentence is a stable claim, a disputed claim, an outdated claim, a weakly supported claim, a claim with strong independent evidence, or a claim whose meaning changes across contexts.
+AXC uses the public `.axc` suffix. It may be encoded as newline-delimited canonical JSON internally, but `.axc` is the public artifact type.
 
----
+## Core Rules
 
-## Core idea
+Axiom preserves these rules unless a future accepted ADR explicitly changes them:
 
-Axiom represents pretraining data as **claim fields**.
-
-A claim field is a structured, time-aware representation of knowledge. It contains claim identities, textual views, provenance, evidence, uncertainty, relations, context, and training targets.
-
-At the center of the framework is the **Claim Capsule**: a self-contained unit of training data that keeps raw text and structured knowledge together.
-
-A simplified capsule looks like this:
-
-```json
-{
-  "capsule_id": "claim_family:example:0001",
-  "claim": {
-    "text": "A specific method improves performance under a defined condition.",
-    "domain": ["machine_learning"],
-    "time": "2026-01-01"
-  },
-  "views": {
-    "source_spans": ["..."],
-    "neutral_summary": "...",
-    "technical_summary": "...",
-    "counterargument": "...",
-    "limitations": "..."
-  },
-  "epistemic_state": {
-    "evidence": 0.72,
-    "stability": 0.58,
-    "novelty": 0.41,
-    "uncertainty": 0.33,
-    "redundancy": 2.8
-  },
-  "provenance": {
-    "sources": ["..."],
-    "licenses": ["..."],
-    "cutoff_time": "2026-01-01"
-  },
-  "relations": [
-    {
-      "type": "supports",
-      "target": "claim_family:example:0002",
-      "confidence": 0.81
-    },
-    {
-      "type": "contradicts",
-      "target": "claim_family:example:0003",
-      "confidence": 0.64
-    }
-  ],
-  "training_targets": {
-    "next_token": true,
-    "future_summary": true,
-    "relation_prediction": true,
-    "provenance_recovery": true,
-    "uncertainty_calibration": true
-  }
-}
-```
-
-This schema is only illustrative. The implemented schema is versioned and validated in code.
-
----
-
-## What Axiom is
-
-Axiom is designed to be:
-
-- a data-contract-first framework for structured LLM pretraining;
-- a claim-centric substrate builder for scientific and technical corpora;
-- a storage and validation layer for provenance-aware training data;
-- a bridge between structured data and token-based training networks;
-- a falsification harness for comparing structured pretraining against strong baselines;
-- a research platform for testing whether richer training data formats improve LLM behavior.
-
----
-
-## What Axiom is not
-
-Axiom is not:
-
-- a finished foundation model;
-- a benchmark leaderboard project;
-- a simple RAG pipeline;
-- a replacement for PyTorch, JAX, DeepSpeed, Megatron, or FSDP;
-- a claim that structured pretraining is already proven;
-- a framework that treats popularity, citation count, or repetition as truth.
-
-The project is explicitly experimental. Negative results are useful results.
-
----
-
-## Architecture
-
-```mermaid
-flowchart TD
-    A[Raw documents] --> B[Normalization and deduplication]
-    B --> C[Document manifests and source registry]
-    C --> D[Claim extraction]
-    D --> E[Claim family clustering]
-    E --> F[Relation extraction]
-    F --> G[Provenance and temporal validation]
-    G --> H[Claim Capsule Store]
-
-    H --> I[Tokenizer bridge]
-    H --> J[Side-channel tensorizer]
-    H --> K[Relation and context sampler]
-
-    I --> L[Training DataLoader]
-    J --> L
-    K --> L
-
-    L --> M[LLM training backbone]
-    M --> N[Auxiliary training heads]
-
-    N --> O[Evaluation harness]
-    O --> P[Baselines and ablations]
-    P --> Q[Research report and decision]
-```
-
-The architecture separates the project into independently testable layers:
-
-```text
-source data -> claim field substrate -> training bridge -> model training -> falsification
-```
-
-This separation is intentional. The framework should make it possible to improve or replace one layer without blocking the others.
-
----
-
-## Design principles
-
-### 1. Data contract first
-
-The first stable object in the project is the data schema. Model experiments are not meaningful if the training substrate is vague, inconsistent, or impossible to reproduce.
-
-### 2. Raw text is never discarded
-
-Structured representations can be wrong. Every capsule must preserve enough source grounding to audit, repair, or regenerate the structured fields.
-
-### 3. Provenance is part of the data
-
-Sources, licenses, timestamps, extraction methods, and transformation history are not metadata afterthoughts. They are part of the training substrate.
-
-### 4. Time matters
-
-Axiom treats temporal leakage as a first-class failure mode. A model must not receive future evidence when training or evaluating a past claim state.
-
-### 5. Uncertainty is trainable
-
-The framework represents uncertainty, evidence strength, contradiction, and stability as explicit signals where possible. The goal is better calibration, not just better recall.
-
-### 6. Falsification before scale
-
-The framework must beat strong baselines before advanced architecture claims are taken seriously. Flat-text baselines, structured-text baselines, relation ablations, context shuffles, and popularity controls are required.
-
-### 7. No hard-coded victory
-
-The framework must not bake the target hypothesis into the loss function and then rediscover it. Effects should be estimated on held-out data and tested against controls.
-
----
-
-## Planned components
-
-```text
-src/axiom/
-  schema/              Versioned data contracts for capsules, claims, relations, and manifests
-  store/               JSONL, Parquet, and manifest-backed storage layers
-  ingest/              Source ingestion, normalization, hashing, and deduplication
-  extraction/          Claim extraction and textual view generation interfaces
-  clustering/          Claim-family clustering and semantic grouping
-  relations/           Support, contradiction, supersession, and reuse relation builders
-  tensorize/           Conversion from capsules into model-ready tensors
-  data/                Dataset, sampler, collator, and training stream logic
-  training/            Training-loop adapters and auxiliary objective wiring
-  evaluation/          Baselines, ablations, contamination checks, and metrics
-  cli/                 Command-line interface
-  research/            Experiment manifests, reports, and reproducibility utilities
-
-docs/
-  source-material/     Project source documents and research notes
-  architecture/        Architecture decisions and design rationale
-  protocols/           Data, training, and evaluation protocols
-
-configs/
-  data/                Data pipeline configs
-  training/            Training configs
-  evaluation/          Evaluation configs
-
-tests/
-  fixtures/            Small deterministic test fixtures only
-  unit/                Unit tests
-  integration/         Integration tests
-```
-
-Small fixtures may exist for testing, but the project is not organized around demos. The main path is production-grade research infrastructure.
-
----
-
-## Target technology stack
-
-Axiom is Python-first.
-
-The current project baseline is:
-
-```text
-Python >=3.14,<3.15
-PyTorch
-Pydantic v2
-PyArrow / Parquet
-Polars
-DuckDB
-Hugging Face tokenizers and datasets
-Ruff
-Mypy
-Pytest
-GitHub Actions
-```
-
-Distributed training support is expected to integrate with established systems rather than reimplement them from scratch. Candidate integrations include PyTorch FSDP, DeepSpeed, Megatron-style training, and accelerator-specific backends.
-
----
+- no binary truth labels;
+- no temporal leakage;
+- time and lateral context are distinct axes;
+- redundancy is not popularity;
+- geometry is experimental, ablatable, and gauge-invariant;
+- raw gauge matrices are not canonical semantic outputs;
+- missing targets require loss masks and are not negative examples;
+- negative samples are required for relation, provenance, and context objectives;
+- external or local LLM providers may be used only for data construction/substrate harvesting;
+- external LLMs are never used in training, evaluation, scoring, or benchmark judging unless a future ADR isolates and authorizes that use;
+- raw model emissions must be stored and scored separately from interpreter output.
 
 ## Installation
 
-The exact installation command may change before the first release. The intended local development flow is:
+Target runtime:
+
+```text
+Python >=3.14,<3.15
+```
+
+Development setup:
 
 ```bash
-git clone https://github.com/<owner>/<repo>.git
-cd <repo>
+git clone https://github.com/shiftbloom-studio/axiom-llm-training-framework.git
+cd axiom-llm-training-framework
 uv sync --python 3.14
 uv run pytest
 ```
 
-Alternative pip-based development setup:
+Alternative editable install:
 
 ```bash
 python3.14 -m venv .venv
@@ -288,188 +80,99 @@ pip install -e ".[dev]"
 pytest
 ```
 
----
+## CLI Examples
 
-## Target CLI
-
-The CLI is expected to support workflows like:
+Validate an AXC stream:
 
 ```bash
-axiom validate data/capsules/train.jsonl
-axiom manifest build data/raw --output data/manifests/raw.json
-axiom capsules build configs/data/build_claim_capsules.yaml
-axiom capsules inspect data/capsules/train.jsonl --id claim_family:example:0001
-axiom tensorize configs/training/tensorize.yaml
-axiom evaluate configs/evaluation/flat_vs_capsule.yaml
+axiom format validate examples/axf/v0_1/minimal_capsules.axc
 ```
 
-These commands describe the intended interface. The implemented CLI should document which commands are currently available.
-
-Currently implemented substrate commands:
+Build a local claim-field substrate and write a canonical AXC stream:
 
 ```bash
 axiom build-substrate \
   --input tests/fixtures/source_docs \
-  --output data/claim-field/capsules.jsonl \
+  --output data/claim-field/capsules.internal.jsonl \
+  --axc-output data/claim-field/capsules.axc \
   --manifest data/claim-field/build_manifest.json \
   --cutoff-date 2026-01-01
-
-axiom inspect-substrate --input data/claim-field/capsules.jsonl
 ```
 
-See `docs/CLAIM_FIELD_SUBSTRATE_BUILDER.md` for the Step 02 builder contract and limitations.
-
----
-
-## Axiom Exchange Format
-
-Axiom introduces **AXF**, an open exchange format for claim-centric pretraining datasets.
-
-- **AXC** stores line-oriented claim-state capsules.
-- **AXP** stores complete dataset packages with manifests, splits, hashes, and controls.
-- **AXT** will store compiled training tensors in a later training bridge step.
-
-AXF stores stabilization, revision, provenance, uncertainty, relation, and temporal state, not binary truth labels. It is designed for falsification-driven evaluation and temporal leakage control.
-
-Canonical AXF v0.1 conformance fixtures live in `examples/axf/v0_1/` and are validated by the `tests/format` suite.
-
----
-
-## Evaluation philosophy
-
-Axiom is not successful just because it creates more structured data.
-
-The core research question is whether structured claim-field pretraining improves model behavior under fair comparison.
-
-Required comparisons include:
-
-| Comparison | Purpose |
-|---|---|
-| Flat text baseline | Tests whether structure helps beyond ordinary pretraining. |
-| Structured text baseline | Tests whether gains come merely from summaries, FAQs, or rewritten text. |
-| Capsule model | Tests the full claim-field substrate. |
-| No-provenance ablation | Tests whether source grounding matters. |
-| No-relation ablation | Tests whether relation structure matters. |
-| Context-shuffle control | Tests whether context labels carry real signal. |
-| Popularity / frequency controls | Tests whether the system confuses repetition with truth. |
-| Temporal leakage audit | Tests whether future information entered the past. |
-
-A result is only meaningful if it survives strong controls.
-
----
-
-## Falsification harness
-
-Step 4 is implemented as a torch-free artifact generator under
-`hcaps.falsification`. It creates reproducible comparison arms, ablations,
-shuffle controls, leakage audits, dataset diagnostics, and manifests for AXC/AXP
-claim capsules.
-
-Implemented CLI commands:
+Create falsification-preparation artifacts:
 
 ```bash
-axiom falsify run examples/axf/v0_1/minimal_dataset.axp --output-dir artifacts --arms all --seed 13 --allow-all-without-split
-axiom falsify audit examples/axf/v0_1/minimal_capsules.axc --json
-axiom falsify report artifacts/falsification/<run_id>/manifest.json --output report.md
+axiom falsify run \
+  examples/axf/v0_1/minimal_dataset.axp \
+  --output-dir artifacts \
+  --arms all \
+  --seed 13 \
+  --allow-all-without-split
 ```
 
-The harness writes artifacts and manifests only. It does not train models and it
-does not make model-result claims. See `docs/FALSIFICATION_HARNESS.md`.
-
----
-
-## Research roadmap
-
-The project is organized around five concrete milestones.
-
-| Milestone | Deliverable |
-|---:|---|
-| 1 | Repository foundation, schema, storage layer, validation, manifests, tests, and CI. |
-| 2 | Claim-field substrate builder: documents to claims, claim families, relations, provenance, and capsules. |
-| 3 | Training bridge: tokenizer integration, Dataset, DataLoader, collator, side-channel tensors, and baseline streams. |
-| 4 | Falsification harness: baselines, ablations, context shuffle, popularity controls, temporal audits, and metrics. |
-| 5 | First full experiment: run, analyze, report, and decide whether to scale, redesign, or reject hypotheses. |
-
-The project should not skip directly to large training runs. The substrate and evaluation protocol must be credible first.
-
----
-
-## Repository source material
-
-Research notes, design documents, and source material should live under:
-
-```text
-docs/source-material/
-```
-
-These files are part of the project's intellectual background, but the runtime code should depend on stable schemas and protocols, not on informal notes.
-
-Recommended derived documents:
-
-```text
-ARCHITECTURE.md
-DATA_CONTRACT.md
-RESEARCH_PROTOCOL.md
-EVALUATION_PROTOCOL.md
-PROJECT_KNOWLEDGE.md
-```
-
----
-
-## Contributing
-
-Contributions are welcome once the initial data contract and repository structure are stable.
-
-Useful contribution areas include:
-
-- schema review;
-- source manifest design;
-- claim extraction interfaces;
-- provenance and license tracking;
-- temporal leakage detection;
-- dataset and collator implementation;
-- PyTorch training integration;
-- evaluation metrics;
-- ablation design;
-- documentation and reproducibility tooling.
-
-Please keep contributions aligned with the core project discipline: reproducibility, falsification, explicit assumptions, and no unsupported claims.
-
----
-
-## Development standards
-
-All code should be typed, tested, and formatted.
-
-Expected checks:
+Render a falsification readiness report:
 
 ```bash
-ruff check .
-ruff format --check .
-mypy src
-pytest
+axiom falsify report \
+  artifacts/falsification/<run_id>/manifest.json \
+  --output report.md
 ```
 
-Any generated dataset artifact should have a manifest, hash, source reference, timestamp policy, and reproducibility note.
+These commands prepare and inspect data artifacts. They do not train the v1 model and do not produce an evaluation verdict.
 
----
+## v1 Roadmap
+
+Axiom v1 is organized as ten implementation programs. Validation, tests, documentation, fixtures, manifests, and quality gates are done criteria inside each program, not separate roadmap phases.
+
+1. P1 Claim-Field Corpus & Provider Ingress
+2. P2 AXF v1 Contract, AXT & AXC-out Specification
+3. P3 AXT Compiler & Runtime Data Interface
+4. P4 Structured Encoder & Relation/Hypergraph Conditioning
+5. P5 Learned Geometry Core
+6. P6 Full-Complexity Core & Epistemic Router
+7. P7 Structured Decoder, AXC-out Interpreter & Text Projection
+8. P8 Multi-Objective Training Runtime & Curriculum
+9. P9 Experiment Arm Orchestrator & Decision Runtime
+10. P10 Open Research Runtime & Operator Surface
+
+Legacy Steps 1-4 are foundation/infrastructure. Step 3 is a lightweight training bridge, not the P3 structured-native model program. Step 4 prepares falsification artifacts, not the P9/P10 evaluation verdict. Step 5 is not complete unless real training/evaluation artifacts and a decision report exist.
+
+## Fairness
+
+Primary fairness is not token parity alone.
+
+Primary fairness:
+
+```text
+same source content
+same temporal cutoffs
+same splits
+same extraction substrate
+matched parameter budget
+matched compute budget / FLOPs
+matched training schedule where applicable
+```
+
+Token parity applies only within text-rendered arms and text-projection losses/metrics.
+
+The v1 experiments must separate:
+
+1. structured input;
+2. structured auxiliary supervision;
+3. architecture change;
+4. learned geometry.
+
+## Documentation
+
+Start with:
+
+- [docs/concept/CONCEPT.md](docs/concept/CONCEPT.md)
+- [docs/concept/DECISIONS.md](docs/concept/DECISIONS.md)
+- [docs/work/IMPLEMENTATION_ROADMAP.md](docs/work/IMPLEMENTATION_ROADMAP.md)
+- [docs/README.md](docs/README.md)
+
+The internal Python package is still named `hcaps` for legacy compatibility. Public documentation should use Axiom terminology.
 
 ## License
 
-This project is intended to be released as open source. Apache License 2.0 is recommended for a training framework, but the final license should be confirmed before the first public release.
-
----
-
-## Citation
-
-If you use Axiom in research, please cite the repository and the relevant experiment reports once public releases are available.
-
-A `CITATION.cff` file should be added before the first stable research release.
-
----
-
-## Research disclaimer
-
-Axiom is an experimental research framework. It does not claim that claim-centric pretraining is superior by default. The purpose of the project is to build the infrastructure required to test that hypothesis seriously.
-
-The best outcome is not a predetermined positive result. The best outcome is a reproducible answer.
+Apache-2.0. See [LICENSE](LICENSE).

@@ -11,6 +11,8 @@ AXF v0.1 includes:
   controls.
 - AXT: Axiom Tensor Bundle, a later compiled training tensor artifact specified
   now and implemented in a future training bridge step.
+- AXC-out: the structured model emission format, specified as a reserved v1
+  contract and implemented in later model/decoder work.
 
 ## Principles
 
@@ -44,6 +46,7 @@ context state.
 | AXC | `.axc` | Claim-state capsule stream |
 | AXP | `.axp/` | Dataset package directory |
 | AXT | `.axt`, `.axt.safetensors` | Future compiled tensor bundle |
+| AXC-out | `.axc-out`, `.axc-out.json` | Future structured model emission |
 
 Compressed `.axc.zst` and `.axp.tar.zst` are reserved in the
 specification but not implemented in v0.1.
@@ -79,6 +82,29 @@ The canonical gauge policy is:
 ```text
 gauge_invariant_observables_only
 ```
+
+## AXT Policy
+
+AXT must include both predictor-side input tensors and target/output tensors.
+It must include explicit loss masks, target availability, temporal masks, and
+negative-sampling metadata for relation, provenance, context, temporal,
+near-but-distinct, and same-topic unrelated samples.
+
+Missing targets are masked. They are not negative labels.
+
+## AXC-out Policy
+
+AXC-out must preserve:
+
+```text
+raw_emission
+validated_axc_out
+interpreted_projection
+text_projection
+```
+
+Raw emissions are scored directly. The interpreter must be deterministic,
+versioned, ablatable, and unable to hide malformed model output.
 
 ## Falsification Controls
 

@@ -3,13 +3,14 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "holocapsule-llm-training"
+name = "axiom-llm-training-framework"
 version = "0.1.0"
-description = "HoloCapsule Claim-Field Pretraining research repository."
+description = "Structured-native LLM training framework for claim-field substrates."
 readme = "README.md"
-requires-python = ">=3.14"
-license = { text = "Proprietary research codebase; license TBD." }
-authors = [{ name = "HoloCapsule contributors" }]
+requires-python = ">=3.14,<3.15"
+license = "Apache-2.0"
+authors = [{ name = "Axiom contributors" }]
+maintainers = [{ name = "Shiftbloom Studio" }]
 dependencies = [
   "orjson>=3.10.18",
   "polars>=1.31.0",

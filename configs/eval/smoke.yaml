@@ -1,8 +1,9 @@
 enabled: false
-reason: "Evaluation harness is intentionally out of scope for Step 1."
+reason: "Model-based evaluation is a future v1 program, not pre-P1 work."
 future_arms:
   - flat_text_baseline
   - structured_text_baseline
-  - holocapsule_text_only
-  - holocapsule_side_channels
+  - axiom_structured_text
+  - axiom_structured_native
+  - axiom_structured_native_geometry
   - context_shuffled_ablation

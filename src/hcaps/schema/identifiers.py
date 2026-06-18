@@ -1,4 +1,4 @@
-"""Stable identifier contracts for HoloCapsule records."""
+"""Stable identifier contracts for Axiom claim-state records."""
 
 from __future__ import annotations
 
