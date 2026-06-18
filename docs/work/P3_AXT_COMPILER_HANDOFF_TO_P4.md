@@ -2,10 +2,10 @@
 
 Status: P3 implementation-complete handoff, consumed by P4.
 
-Current next action after P4:
+Current next action after P4/P5:
 
 ```text
-Implement P5: Learned Geometry & Claim-Field Graph Dynamics.
+Implement P6: Training, Experiments, Verdict & Operator Runtime.
 ```
 
 P3 implemented the executable AXT compiler/runtime data interface. It did not

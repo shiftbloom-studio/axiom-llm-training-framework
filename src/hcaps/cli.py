@@ -32,6 +32,13 @@ from hcaps.falsification.runner import (
 )
 from hcaps.format.package import create_package_skeleton, inspect_package, validate_package
 from hcaps.format.streams import validate_axc_stream
+from hcaps.geometry import GeometryConfig
+from hcaps.geometry.cli import (
+    compute_reference_geometry,
+    inspect_axt_geometry,
+    sample_axt_loops,
+    smoke_geometry,
+)
 from hcaps.model import AxiomModelConfig, AxiomStructuredModel
 from hcaps.model.parameter_count import parameter_count
 from hcaps.providers.cache import ProviderCache
@@ -50,12 +57,14 @@ corpus_cache_app = typer.Typer(help="Provider cache inspection.")
 corpus_gold_app = typer.Typer(help="Human-review candidate exports.")
 axt_app = typer.Typer(help="AXT tensor bundle compiler and runtime interface commands.")
 model_app = typer.Typer(help="Structured-native model stack developer commands.")
+geometry_app = typer.Typer(help="Learned geometry developer commands.")
 app.add_typer(format_app, name="format")
 app.add_typer(package_app, name="package")
 app.add_typer(falsify_app, name="falsify")
 app.add_typer(corpus_app, name="corpus")
 app.add_typer(axt_app, name="axt")
 app.add_typer(model_app, name="model")
+app.add_typer(geometry_app, name="geometry")
 corpus_app.add_typer(corpus_providers_app, name="providers")
 corpus_app.add_typer(corpus_cache_app, name="cache")
 corpus_app.add_typer(corpus_gold_app, name="gold")
@@ -480,6 +489,88 @@ def model_smoke_forward_command(
         "geometry": output.geometry_diagnostics,
     }
     _print_payload(payload, json_output=json_output, title="Axiom Model Smoke Forward")
+
+
+@geometry_app.command("inspect-axt")
+def geometry_inspect_axt_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    batch_size: Annotated[int, typer.Option("--batch-size", min=1)] = 4,
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Inspect geometry graph structure derived from an AXT bundle."""
+
+    try:
+        payload = inspect_axt_geometry(bundle_path, batch_size=batch_size)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom Geometry AXT Inspect")
+
+
+@geometry_app.command("sample-loops")
+def geometry_sample_loops_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    output: Annotated[Path, typer.Option("--output", help="Loop sample JSON output path.")],
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Geometry YAML config path."),
+    ] = Path("configs/geometry/geometry_learned_smoke.yaml"),
+    batch_size: Annotated[int, typer.Option("--batch-size", min=1)] = 4,
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Sample bounded geometry loops from AXT-derived context transitions."""
+
+    try:
+        config = GeometryConfig.from_yaml(config_path)
+        payload = sample_axt_loops(bundle_path, output=output, config=config, batch_size=batch_size)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom Geometry Loops")
+
+
+@geometry_app.command("compute-reference")
+def geometry_compute_reference_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    output: Annotated[Path, typer.Option("--output", help="Reference JSON output path.")],
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Geometry YAML config path."),
+    ] = Path("configs/geometry/geometry_reference_smoke.yaml"),
+    batch_size: Annotated[int, typer.Option("--batch-size", min=1)] = 4,
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Compute off-loop reference geometry diagnostics for a tiny AXT batch."""
+
+    try:
+        config = GeometryConfig.from_yaml(config_path)
+        payload = compute_reference_geometry(
+            bundle_path,
+            output=output,
+            config=config,
+            batch_size=batch_size,
+        )
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom Geometry Reference")
+
+
+@geometry_app.command("smoke")
+def geometry_smoke_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Geometry YAML config path."),
+    ] = Path("configs/geometry/geometry_learned_smoke.yaml"),
+    batch_size: Annotated[int, typer.Option("--batch-size", min=1)] = 4,
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Run a no-training learned-geometry smoke forward over an AXT bundle."""
+
+    try:
+        config = GeometryConfig.from_yaml(config_path)
+        payload = smoke_geometry(bundle_path, config=config, batch_size=batch_size)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="Axiom Geometry Smoke")
 
 
 @format_app.command("validate")

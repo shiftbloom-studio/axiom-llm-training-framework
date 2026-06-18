@@ -128,4 +128,4 @@ P4 does not implement:
 - external LLM calls;
 - truth labels.
 
-P5 owns the learned geometry module. P6 owns loss computation, training, experiment arms, and research verdicts.
+P5 now owns the learned geometry module through `hcaps.geometry` and the P4 `GeometryProviderProtocol`. P6 owns loss computation, training, experiment arms, and research verdicts.

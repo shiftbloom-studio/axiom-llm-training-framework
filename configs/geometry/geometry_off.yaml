@@ -1,0 +1,23 @@
+mode: off
+fiber_dim: 16
+geometry_feature_dim: 64
+connection_rank: null
+transport_operator: matrix_exp
+max_loop_length: 4
+max_loops_per_batch: 128
+max_loops_per_claim_family: 8
+max_context_degree: 16
+seed: 13
+use_provider_context: false
+use_provider_disagreement_edges: false
+use_relation_type_conditioning: false
+parameter_matched: false
+regularizers:
+  connection_norm: 0.0
+  curvature_energy: 0.0
+  path_consistency: 0.0
+  context_smoothness: 0.0
+  transport_identity_bias: 0.0
+  non_degenerate_usage: 0.0
+export:
+  include_raw_matrices: false

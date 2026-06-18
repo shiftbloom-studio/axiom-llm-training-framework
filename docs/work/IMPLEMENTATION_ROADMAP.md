@@ -2,7 +2,7 @@
 
 **Status:** consolidated six-program roadmap
 **Target:** full structured-native LLM training framework v1
-**Current next program:** P5 — Learned Geometry & Claim-Field Graph Dynamics
+**Current next program:** P6 — Training, Experiments, Verdict & Operator Runtime
 **Roadmap style:** all-or-nothing implementation programs; no standalone validation, test, cleanup, or documentation phases
 
 ---
@@ -47,7 +47,7 @@ P1 is reported as implementation-complete and provides:
 - optional/plugin-gated PDF reader path;
 - pre-P1 documentation baseline alignment.
 
-P1 is accepted as the substrate-ingress foundation for P2. P2 formalizes the contracts around P1 outputs. P3 implements the executable AXT compiler/runtime data interface over those contracts. P4 implements the first torch-native structured model stack over P3 AXT batches and hands stable geometry/training hooks to P5/P6.
+P1 is accepted as the substrate-ingress foundation for P2. P2 formalizes the contracts around P1 outputs. P3 implements the executable AXT compiler/runtime data interface over those contracts. P4 implements the first torch-native structured model stack over P3 AXT batches. P5 implements the learned claim-field geometry module and hands geometry controls/regularizers to P6.
 
 ---
 
@@ -519,7 +519,7 @@ P4 does not implement the full learned geometry math if assigned to P5, does not
 
 # P5 — Learned Geometry & Claim-Field Graph Dynamics
 
-**Status:** next implementation program
+**Status:** ✅ implementation-complete / accepted as P6 handoff
 **Depends on:** P3
 **Coordinates with:** P4
 **Feeds:** P6
@@ -580,7 +580,7 @@ P5 does not claim HKR is proven. It implements a learnable geometry module and t
 
 # P6 — Training, Experiments, Verdict & Operator Runtime
 
-**Status:** not started
+**Status:** next implementation program
 **Depends on:** P4 and P5, with P1 gold/evaluation-reference hooks
 **Produces:** first Axiom v1 research verdict
 
@@ -710,8 +710,8 @@ P4 and P5 may be developed concurrently after P3, but P6 must not begin until th
 | **P2 AXF v1 Contract, AXT & AXC-out Specification** | ✅ spec/interface-complete | Consumed by P3 |
 | **P3 AXT Compiler & Runtime Data Interface** | ✅ implementation-complete | Handoff to P4/P5/P6 |
 | **P4 Structured-Native Model Stack** | ✅ implementation-complete | Handoff to P5/P6 |
-| **P5 Learned Geometry & Claim-Field Graph Dynamics** | ☐ not started | Implement geometry plan next |
-| **P6 Training, Experiments, Verdict & Operator Runtime** | ☐ not started | Write plan after P4/P5 interfaces are clear |
+| **P5 Learned Geometry & Claim-Field Graph Dynamics** | ✅ implementation-complete | Handoff to P6 |
+| **P6 Training, Experiments, Verdict & Operator Runtime** | ☐ not started | Implement training/experiment runtime next |
 
 ---
 
@@ -759,8 +759,8 @@ Do not create standalone “validation steps.” Testing and documentation are p
 The next agent should execute:
 
 ```text
-PLAN 5 — Learned Geometry & Claim-Field Graph Dynamics
+PLAN 6 — Training, Experiments, Verdict & Operator Runtime
 ```
 
-P5 must integrate through the P4 geometry hook API and must not rewrite the
-structured-native model stack, add truth labels, or claim a geometry verdict.
+P6 must train and compare the P4/P5-compatible system without external LLM calls,
+truth labels, temporal leakage, or overclaiming the verdict.
