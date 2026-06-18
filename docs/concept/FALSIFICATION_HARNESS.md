@@ -25,7 +25,7 @@ The harness prepares controls for:
 
 ## Relationship to Structured-Native v1
 
-The current harness is infrastructure. Future P9/P10 work must extend it to orchestrate structured-native arms that consume AXT and emit AXC-out.
+The current harness is infrastructure. Future P6 work must extend it to orchestrate structured-native arms that consume AXT and emit AXC-out.
 
 Current text-rendered artifacts are comparison surfaces, not the native Axiom model boundary.
 
@@ -78,4 +78,4 @@ axiom falsify report artifacts/falsification/<run_id>/manifest.json --output rep
 
 ## Hand-Off
 
-The harness provides manifests and controls for later training/evaluation programs. It does not decide whether structured-native Axiom works. That verdict requires trained models, AXC-out scoring, text-projection comparisons, and a decision report.
+The harness provides manifests and controls for later training/evaluation programs. It does not decide whether structured-native Axiom works. That verdict requires trained models, AXC-out scoring, text-projection comparisons, and a decision report. P2 defines the AXC-out and mask contracts that later harness extensions must consume.

@@ -14,18 +14,19 @@ Current repository status:
 
 - Foundation, substrate, AXF/AXC/AXP format support, provider-aware P1 corpus ingress, a lightweight training bridge, and falsification-preparation artifacts exist.
 - P1 adds deterministic/local/remote-compatible data-construction providers, replayable provider caches, trace/disagreement manifests, source registries, negative pools, gold-reference candidate hooks, and a tiny synthetic ML/software benchmark corpus fixture.
+- P2 defines AXF v1, AXC v1, AXP v1, AXT v1, AXC-out v1, field/vocabulary registries, masks, negative sampling, provider traces, and interpreter boundaries.
 - AXT is specified as the tensor bridge, but the production AXT compiler is not complete.
-- AXC-out is specified as the future structured model emission format, but the runtime decoder/interpreter is not complete.
+- AXC-out is specified as the structured model emission format, but the runtime decoder/interpreter is not complete.
 - The v1 structured-native model, learned geometry module, multi-objective training runtime, and evaluation verdict are not complete.
 - No benchmark or model-performance claim is made by this repository.
 
 The next implementation action is:
 
 ```text
-Create Implementation Plan P2: AXF v1 Contract, AXT & AXC-out Specification.
+Create Implementation Plan P3: AXT Compiler & Runtime Data Interface.
 ```
 
-P1 is corpus-ingress work only. It does not train the model or produce an evaluation verdict.
+P1 and P2 are substrate/interface work only. They do not train the model or produce an evaluation verdict.
 
 ## Format Family
 
@@ -147,18 +148,14 @@ These commands prepare and inspect data artifacts. They do not train the v1 mode
 
 ## v1 Roadmap
 
-Axiom v1 is organized as ten implementation programs. Validation, tests, documentation, fixtures, manifests, and quality gates are done criteria inside each program, not separate roadmap phases.
+Axiom v1 is organized as six implementation programs in the current roadmap. Validation, tests, documentation, fixtures, manifests, and quality gates are done criteria inside each program, not separate roadmap phases.
 
 1. P1 Claim-Field Corpus & Provider Ingress
 2. P2 AXF v1 Contract, AXT & AXC-out Specification
 3. P3 AXT Compiler & Runtime Data Interface
-4. P4 Structured Encoder & Relation/Hypergraph Conditioning
-5. P5 Learned Geometry Core
-6. P6 Full-Complexity Core & Epistemic Router
-7. P7 Structured Decoder, AXC-out Interpreter & Text Projection
-8. P8 Multi-Objective Training Runtime & Curriculum
-9. P9 Experiment Arm Orchestrator & Decision Runtime
-10. P10 Open Research Runtime & Operator Surface
+4. P4 Structured-Native Model Stack
+5. P5 Learned Geometry & Claim-Field Graph Dynamics
+6. P6 Training, Experiment Orchestration & Research Runtime
 
 Legacy Steps 1-4 are foundation/infrastructure. Step 3 is a lightweight training bridge, not the P3 structured-native model program. Step 4 prepares falsification artifacts, not the P9/P10 evaluation verdict. Step 5 is not complete unless real training/evaluation artifacts and a decision report exist.
 
@@ -194,6 +191,8 @@ Start with:
 - [docs/concept/CONCEPT.md](docs/concept/CONCEPT.md)
 - [docs/concept/DECISIONS.md](docs/concept/DECISIONS.md)
 - [docs/work/IMPLEMENTATION_ROADMAP.md](docs/work/IMPLEMENTATION_ROADMAP.md)
+- [docs/work/P2_HANDOFF_TO_P3.md](docs/work/P2_HANDOFF_TO_P3.md)
+- [spec/AXF_V1.md](spec/AXF_V1.md)
 - [docs/README.md](docs/README.md)
 
 The internal Python package is still named `hcaps` for legacy compatibility. Public documentation should use Axiom terminology.

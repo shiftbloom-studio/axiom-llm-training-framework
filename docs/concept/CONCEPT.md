@@ -8,8 +8,10 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
 
 ## 1. Mission & posture
 
-- Build a testable research framework for one question: under equal tokens/compute/params,
-  does **claim-field structured pretraining** beat flat text on **epistemic competence**?
+- Build a testable research framework for one question: under matched source content,
+  temporal cutoffs, splits, extraction substrate, parameters, compute/FLOPs, and schedules
+  where applicable, does **claim-field structured pretraining** beat flat text on
+  **epistemic competence**?
 - **Build the full theoretical model — properly but small.** No reductions; not
   over-fine-tuned. Do not water down the speculative core out of caution. The falsification
   controls exist to *measure the bold idea honestly*, never as a reason to pre-reduce it.
@@ -71,7 +73,11 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
   hash + replay retained. LLMs are used for **data construction only**, never in the
   training/eval path; the substrate is pinned + hashed and feeds all arms equally, so it
   doesn't bias the comparison. Small human-verified gold set for evaluation. (ADR-0010; see
-  [../work/PLAN_1_substrate.md](../work/PLAN_1_substrate.md))
+  [CORPUS_PROVIDER_INGRESS.md](CORPUS_PROVIDER_INGRESS.md))
+- **P2 interface lock:** AXF v1, AXC v1, AXP v1, AXT v1, AXC-out v1, field/vocabulary
+  registries, loss/target masks, negative-sampling metadata, provider traces, and
+  interpreter boundaries are specified in `spec/*_V1.md`. P3 must implement the compiler
+  against [../work/P2_HANDOFF_TO_P3.md](../work/P2_HANDOFF_TO_P3.md), not invent semantics.
 - **First corpus domain:** ML / software benchmark claims.
 
 ## 4. Owner decisions (meaning preserved, in order)
@@ -109,7 +115,9 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
 - **Four first-class must-haves:** learned geometry as a trained module; the full epistemic
   objective set + heads; relation-neighborhood conditioning with the n-ary path kept open;
   the epistemic "router" escalation kept (not dropped).
-- **Falsification-first:** equal tokens/compute/params across arms; redundancy ≠ popularity;
+- **Falsification-first:** matched source content, temporal cutoffs, splits, extraction
+  substrate, parameters, compute/FLOPs, and schedules where applicable; token parity applies
+  only inside text-rendered arms and text-projection comparisons; redundancy ≠ popularity;
   only gauge-invariant observables; negative results preserved; geometry always ablatable
   with a parameter-matched non-geometric baseline and a context-shuffle control.
 - **No truth labels, ever.**

@@ -13,7 +13,7 @@ When files conflict, follow this order:
 1. `docs/concept/CONCEPT.md`
 2. `docs/concept/DECISIONS.md`
 3. `docs/work/IMPLEMENTATION_ROADMAP.md`
-4. `spec/AXF.md`, `spec/AXC_*`, `spec/AXP_*`, `spec/AXT_*`
+4. `spec/AXF_V1.md`, `spec/AXC_*`, `spec/AXP_*`, `spec/AXT_*`, `spec/AXC_OUT_*`, registries in `spec/*_V1.md`
 5. current implementation plans in `docs/work/` or equivalent
 6. tests and fixtures
 7. older architecture/source-material documents
@@ -118,6 +118,10 @@ Every implementation plan must include, as part of the same work:
 Validation and tests are not separate roadmap steps, but they are mandatory done criteria.
 
 Do not start P1 unless the pre-P1 documentation alignment audit exists and names P1 as the next action. After that, create the P1 implementation plan before doing P1 runtime work.
+
+After P2, do not implement the AXT compiler by inventing field semantics. Use
+`docs/work/P2_HANDOFF_TO_P3.md`, `spec/FIELD_REGISTRY_V1.md`, and
+`spec/VOCABULARY_REGISTRY_V1.md`.
 
 ---
 
