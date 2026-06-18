@@ -2,6 +2,7 @@
 
 from hcaps.schema.capsule import (
     Claim,
+    ClaimCapsule,
     ContextFiber,
     EpistemicState,
     HoloCapsule,
@@ -17,6 +18,7 @@ from hcaps.schema.manifest import DatasetManifest
 
 __all__ = [
     "Claim",
+    "ClaimCapsule",
     "ContextFiber",
     "DatasetManifest",
     "DocumentSpan",
