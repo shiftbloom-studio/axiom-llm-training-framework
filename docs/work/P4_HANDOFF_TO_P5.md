@@ -1,11 +1,11 @@
 # P4 Handoff To P5
 
-Status: P4 implementation-complete handoff for learned geometry integration.
+Status: P4 implementation-complete handoff consumed by P5.
 
-Exact next action:
+Current next action after P5:
 
 ```text
-Implement P5: Learned Geometry & Claim-Field Graph Dynamics.
+Implement P6: Training, Experiments, Verdict & Operator Runtime.
 ```
 
 P4 implemented geometry hooks and a geometry-off path. It did not implement learned connection, transport, holonomy, curvature, gauge regularization, graph dynamics, training, or evaluation.
