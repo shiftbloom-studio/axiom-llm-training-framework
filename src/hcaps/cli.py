@@ -12,6 +12,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from hcaps.axt import AxtCompileConfig, compile_axt, validate_axt_bundle
+from hcaps.axt.inspect import compare_axt_bundles, inspect_axt_bundle, inspect_tensor_group
 from hcaps.corpus.builder import build_corpus
 from hcaps.corpus.gold import export_gold_candidates
 from hcaps.corpus.manifest import load_corpus_build_config
@@ -38,10 +40,12 @@ corpus_app = typer.Typer(help="Provider-aware corpus ingress commands.")
 corpus_providers_app = typer.Typer(help="Provider configuration checks.")
 corpus_cache_app = typer.Typer(help="Provider cache inspection.")
 corpus_gold_app = typer.Typer(help="Human-review candidate exports.")
+axt_app = typer.Typer(help="AXT tensor bundle compiler and runtime interface commands.")
 app.add_typer(format_app, name="format")
 app.add_typer(package_app, name="package")
 app.add_typer(falsify_app, name="falsify")
 app.add_typer(corpus_app, name="corpus")
+app.add_typer(axt_app, name="axt")
 corpus_app.add_typer(corpus_providers_app, name="providers")
 corpus_app.add_typer(corpus_cache_app, name="cache")
 corpus_app.add_typer(corpus_gold_app, name="gold")
@@ -277,6 +281,112 @@ def _parse_cutoff_date(value: str | None) -> date | None:
         raise typer.BadParameter("--cutoff-date must use YYYY-MM-DD") from exc
 
 
+@axt_app.command("compile")
+def axt_compile_command(
+    input_path: Annotated[Path, typer.Option("--input", help="AXC stream or AXP package.")],
+    output_path: Annotated[Path, typer.Option("--output", help="Output .axt bundle directory.")],
+    config_path: Annotated[
+        Path | None,
+        typer.Option("--config", help="Optional AXT YAML/JSON compile config."),
+    ] = None,
+    split_name: Annotated[str | None, typer.Option("--split-name")] = None,
+    allow_all_without_split: Annotated[
+        bool,
+        typer.Option("--allow-all-without-split/--require-split"),
+    ] = False,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite an existing bundle.")] = False,
+) -> None:
+    """Compile AXC/AXP into an AXT tensor bundle."""
+
+    try:
+        config = (
+            AxtCompileConfig.from_file(config_path)
+            if config_path is not None
+            else AxtCompileConfig(input_path=input_path, output_path=output_path)
+        )
+        config = config.model_copy(
+            update={
+                "input_path": input_path,
+                "output_path": output_path,
+                "split_name": split_name if split_name is not None else config.split_name,
+                "allow_all_without_split": allow_all_without_split
+                or config.allow_all_without_split,
+            }
+        )
+        result = compile_axt(config, force=force)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    table = Table(title="AXT Compile")
+    table.add_column("Metric")
+    table.add_column("Value")
+    table.add_row("Output", str(result.output_path))
+    table.add_row("Records", str(result.manifest.record_count))
+    table.add_row("Source format", result.manifest.source_format)
+    table.add_row("Tensor groups", str(len(result.manifest.tensor_groups)))
+    table.add_row("Warnings", str(len(result.manifest.warnings)))
+    console.print(table)
+
+
+@axt_app.command("inspect")
+def axt_inspect_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Inspect an AXT bundle manifest."""
+
+    try:
+        payload = inspect_axt_bundle(bundle_path)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="AXT Bundle")
+
+
+@axt_app.command("validate")
+def axt_validate_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Print JSON validation report.")
+    ] = False,
+) -> None:
+    """Validate an AXT bundle manifest, hashes, and required tensor groups."""
+
+    report = validate_axt_bundle(bundle_path)
+    _print_validation_report(report, json_output=json_output)
+    if not report["ok"]:
+        raise typer.Exit(code=1)
+
+
+@axt_app.command("tensor")
+def axt_tensor_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    group: Annotated[str, typer.Option("--group", help="Tensor group name.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON tensor summary.")] = False,
+) -> None:
+    """Inspect one AXT tensor group."""
+
+    try:
+        payload = inspect_tensor_group(bundle_path, group)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title=f"AXT Tensor Group: {group}")
+
+
+@axt_app.command("compare")
+def axt_compare_command(
+    left_bundle: Annotated[Path, typer.Argument(help="Left AXT bundle directory.")],
+    right_bundle: Annotated[Path, typer.Argument(help="Right AXT bundle directory.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON comparison.")] = False,
+) -> None:
+    """Compare two AXT bundles by manifest artifact hashes."""
+
+    try:
+        payload = compare_axt_bundles(left_bundle, right_bundle)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _print_payload(payload, json_output=json_output, title="AXT Compare")
+
+
 @format_app.command("validate")
 def format_validate_command(
     input_path: Annotated[Path, typer.Argument(help="AXC stream path.")],
@@ -445,6 +555,18 @@ def _print_validation_report(payload: dict[str, object], *, json_output: bool) -
     if isinstance(issues, list):
         for issue in issues:
             console.print(f"- {issue}")
+
+
+def _print_payload(payload: dict[str, object], *, json_output: bool, title: str) -> None:
+    if json_output:
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+    table = Table(title=title)
+    table.add_column("Field")
+    table.add_column("Value")
+    for key, value in payload.items():
+        table.add_row(str(key), str(value))
+    console.print(table)
 
 
 if __name__ == "__main__":

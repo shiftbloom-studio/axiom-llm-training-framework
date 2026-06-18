@@ -4,7 +4,9 @@ Status: Current | Updated: 2026-06-18 | See: [DATA_CONTRACT.md](DATA_CONTRACT.md
 
 The current training bridge is a lightweight infrastructure layer. It renders claim-state capsules into text comparison arms, tokenizes them with a baseline tokenizer, builds side-channel vectors, and records manifests.
 
-It is not the full v1 AXT compiler, model runtime, or training loop.
+It is not the production v1 AXT compiler, model runtime, or training loop.
+The production P3 compiler/runtime data interface now lives in `hcaps.axt` and
+is documented in [AXT_RUNTIME_DATA_INTERFACE.md](AXT_RUNTIME_DATA_INTERFACE.md).
 
 ## Current Modes
 
@@ -16,9 +18,9 @@ Current implemented renderers:
 
 These are text-rendered arms. They are useful for baselines and text projection. They are not the structured-native Axiom substrate.
 
-## Future AXT Compiler
+## Production AXT Compiler
 
-P3 must implement the production AXT compiler from [../work/P2_HANDOFF_TO_P3.md](../work/P2_HANDOFF_TO_P3.md). AXT must include:
+P3 implements the production AXT compiler from [../work/P2_HANDOFF_TO_P3.md](../work/P2_HANDOFF_TO_P3.md). AXT includes:
 
 - input tensors;
 - target/output tensors;

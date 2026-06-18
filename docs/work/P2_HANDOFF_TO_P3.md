@@ -1,9 +1,11 @@
 # P2 Handoff To P3
 
-Status: P2 handoff for AXT compiler implementation.
+Status: Consumed by P3; retained as the P2-to-P3 contract record.
 
-P3 must implement the compiler from AXC/AXP inputs into AXT tensor bundles using
-the v1 contracts in `spec/`.
+P3 implemented the compiler from AXC/AXP inputs into AXT tensor bundles using
+the v1 contracts in `spec/`. Future agents should use
+[P3_AXT_COMPILER_HANDOFF_TO_P4.md](P3_AXT_COMPILER_HANDOFF_TO_P4.md) for the
+current handoff.
 
 ## Input Locations
 

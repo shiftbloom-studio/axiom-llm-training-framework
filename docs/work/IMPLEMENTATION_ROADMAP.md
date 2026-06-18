@@ -2,7 +2,7 @@
 
 **Status:** consolidated six-program roadmap
 **Target:** full structured-native LLM training framework v1
-**Current next program:** P3 — AXT Compiler & Runtime Data Interface
+**Current next program:** P4 — Structured-Native Model Stack
 **Roadmap style:** all-or-nothing implementation programs; no standalone validation, test, cleanup, or documentation phases
 
 ---
@@ -47,7 +47,7 @@ P1 is reported as implementation-complete and provides:
 - optional/plugin-gated PDF reader path;
 - pre-P1 documentation baseline alignment.
 
-P1 is therefore accepted as the substrate-ingress foundation for P2. P2 formalizes the contracts around P1 outputs and hands them to P3.
+P1 is accepted as the substrate-ingress foundation for P2. P2 formalizes the contracts around P1 outputs. P3 implements the executable AXT compiler/runtime data interface over those contracts and hands AXT to P4/P5/P6.
 
 ---
 
@@ -227,7 +227,7 @@ P1 is accepted as implementation-complete for roadmap purposes. Any remaining co
 
 # P2 — AXF v1 Contract, AXT & AXC-out Specification
 
-**Status:** next implementation program
+**Status:** ✅ spec/interface-complete
 **Depends on:** P1
 **Feeds:** P3, P4, P5, P6
 
@@ -346,7 +346,7 @@ AXC-out target conventions
 
 # P3 — AXT Compiler & Runtime Data Interface
 
-**Status:** not started
+**Status:** ✅ implementation-complete / accepted as P4 handoff
 **Depends on:** P2
 **Feeds:** P4, P5, P6
 
@@ -356,9 +356,9 @@ Build the executable bridge from AXF/AXC/AXP artifacts into AXT tensor bundles a
 
 P3 compiles structure. It does not define new semantics beyond P2 and does not build the model.
 
-## Core Deliverables
+## Implemented Deliverables
 
-P3 must implement:
+P3 implemented:
 
 - AXT compiler;
 - AXT manifest generation;
@@ -386,7 +386,7 @@ P3 must implement:
 
 ## Required Tensor Groups
 
-At minimum, P3 must compile tensor groups equivalent to:
+P3 compiles tensor groups equivalent to:
 
 ```text
 claim_identity
@@ -410,7 +410,7 @@ metadata_index
 
 ## Critical Separation
 
-P3 must preserve:
+P3 preserves:
 
 ```text
 time != lateral context
@@ -434,6 +434,8 @@ P3 does not build:
 
 P3 must produce a runtime interface that P4/P5/P6 can consume without parsing AXC manually.
 
+The accepted P3 handoff is [P3_AXT_COMPILER_HANDOFF_TO_P4.md](P3_AXT_COMPILER_HANDOFF_TO_P4.md).
+
 The output should make model work look like:
 
 ```text
@@ -446,7 +448,7 @@ loss = objective(batch.targets, batch.loss_masks, batch.availability_masks)
 
 # P4 — Structured-Native Model Stack
 
-**Status:** not started
+**Status:** next implementation program
 **Depends on:** P3
 **Coordinates with:** P5
 **Feeds:** P6
@@ -706,9 +708,9 @@ P4 and P5 may be developed concurrently after P3, but P6 must not begin until th
 |---|---|---|
 | **P1 Claim-Field Corpus & Provider Ingress** | ✅ complete / accepted | Freeze handoff to P2 |
 | **P2 AXF v1 Contract, AXT & AXC-out Specification** | ✅ spec/interface-complete | Handoff to P3 |
-| **P3 AXT Compiler & Runtime Data Interface** | 📄 plan updated | Start next |
-| **P4 Structured-Native Model Stack** | ☐ not started | Write plan after P3 contract matures |
-| **P5 Learned Geometry & Claim-Field Graph Dynamics** | ☐ not started | Write plan after P3 contract matures |
+| **P3 AXT Compiler & Runtime Data Interface** | ✅ implementation-complete | Handoff to P4/P5/P6 |
+| **P4 Structured-Native Model Stack** | ☐ not started | Create implementation plan next |
+| **P5 Learned Geometry & Claim-Field Graph Dynamics** | ☐ not started | Write plan after P4 interface choices are clear |
 | **P6 Training, Experiments, Verdict & Operator Runtime** | ☐ not started | Write plan after P4/P5 interfaces are clear |
 
 ---
@@ -757,8 +759,8 @@ Do not create standalone “validation steps.” Testing and documentation are p
 The next agent should execute:
 
 ```text
-PLAN 3 — AXT Compiler & Runtime Data Interface
+PLAN 4 — Structured-Native Model Stack
 ```
 
-P3 must start from `docs/work/P2_HANDOFF_TO_P3.md` and the `spec/*_V1.md`
-contracts. It must compile AXT without inventing new field semantics.
+P4 must consume AXT through `hcaps.axt` and the accepted P3 handoff. It must not
+collapse the model boundary back to token-only text.
