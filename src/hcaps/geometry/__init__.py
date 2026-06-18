@@ -10,6 +10,7 @@ from hcaps.geometry.module import (
     NoGeometryModule,
     NonGeometricContextMixer,
     P4GeometryProvider,
+    P4NonGeometricContextProvider,
 )
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "NoGeometryModule",
     "NonGeometricContextMixer",
     "P4GeometryProvider",
+    "P4NonGeometricContextProvider",
     "expand_hyperedges_to_pairwise",
     "graph_batch_from_axt_batch",
 ]

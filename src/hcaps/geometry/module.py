@@ -292,6 +292,54 @@ class P4GeometryProvider(nn.Module):
                 "p5_geometry_provider": True,
                 "axc_out_fields": output.axc_out_fields,
             },
+            regularizer_terms={
+                name: value.to(device=slot_states.device, dtype=slot_states.dtype)
+                for name, value in output.regularizer_terms.items()
+            },
+        )
+
+
+class P4NonGeometricContextProvider(nn.Module):
+    """P4 adapter for the parameter-bearing non-geometric context control."""
+
+    def __init__(self, config: GeometryConfig, *, model_dim: int) -> None:
+        super().__init__()
+        self.config = config
+        self.model_dim = model_dim
+        effective_config = config.model_copy(update={"geometry_feature_dim": model_dim})
+        self.context_mixer = NonGeometricContextMixer(effective_config, input_dim=model_dim)
+
+    def forward(
+        self,
+        model_input: AxiomModelInput,
+        slot_states: Tensor,
+        relation_graph: object | None = None,
+    ) -> GeometryContext:
+        del relation_graph
+        graph_batch = graph_batch_from_model_input(model_input, self.config)
+        node_states = _node_states_from_slots(slot_states, graph_batch)
+        output = self.context_mixer(node_states=node_states, graph_batch=graph_batch)
+        conditioning = _pool_nodes_to_records(
+            output.conditioning_features,
+            graph_batch,
+            batch_size=model_input.batch_size,
+        )
+        observables = _observable_tensor(output.observables, batch_size=model_input.batch_size)
+        return GeometryContext(
+            observables=observables.to(device=slot_states.device, dtype=slot_states.dtype),
+            conditioning=conditioning.to(device=slot_states.device, dtype=slot_states.dtype),
+            diagnostics={
+                **output.diagnostics.to_dict(),
+                "enabled": False,
+                "mode": "non_geometric_context_mixer",
+                "p5_non_geometric_context_provider": True,
+                "gauge_invariant_only": True,
+                "raw_gauge_matrices_emitted": False,
+            },
+            regularizer_terms={
+                name: value.to(device=slot_states.device, dtype=slot_states.dtype)
+                for name, value in output.regularizer_terms.items()
+            },
         )
 
 

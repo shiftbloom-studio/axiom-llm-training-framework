@@ -1,0 +1,10 @@
+minimum_relative_improvement: 0.05
+minimum_absolute_improvement: 0.01
+max_fairness_parameter_delta: 0.25
+max_compute_delta: 0.25
+kill_absolute_regression: -0.20
+required_controls:
+  - geometry_off
+  - context_shuffle
+  - popularity_frequency_control
+  - temporal_leakage_audit

@@ -18,6 +18,7 @@ class GeometryContext:
     observables: Tensor | None
     conditioning: Tensor | None
     diagnostics: dict[str, Any]
+    regularizer_terms: dict[str, Tensor] | None = None
 
 
 class GeometryProviderProtocol(Protocol):
@@ -132,5 +133,6 @@ class GeometryHook(nn.Module):
                 observables=context.observables,
                 conditioning=context.conditioning,
                 diagnostics=diagnostics,
+                regularizer_terms=context.regularizer_terms,
             )
         return cast(GeometryContext, self.null_provider(model_input, slot_states, relation_graph))

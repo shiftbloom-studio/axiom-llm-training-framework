@@ -1,0 +1,9 @@
+score_levels:
+  - text_projection
+metrics:
+  - text_cross_entropy
+  - text_perplexity
+  - token_accuracy
+  - text_length_normalized_loss
+token_parity_scope: text arms and text-projection metrics only
+external_llm_judging_allowed: false

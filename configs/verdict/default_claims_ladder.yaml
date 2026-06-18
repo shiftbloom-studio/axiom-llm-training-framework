@@ -1,0 +1,10 @@
+levels:
+  0: Infrastructure works.
+  1: AXC/AXT/AXC-out training is technically feasible.
+  2: Structured arms beat flat text on at least one epistemic metric.
+  3: Structured-native beats structured text under matched source/compute/params.
+  4: Geometry adds predictive value beyond non-geometric structured baseline.
+  5: Geometry effects survive context/provider shuffle and popularity controls.
+  6: Results generalize across splits/domains and support HKR-inspired epistemic dynamics.
+forbidden_level_7: HKR is proven.
+proof_language_allowed: false

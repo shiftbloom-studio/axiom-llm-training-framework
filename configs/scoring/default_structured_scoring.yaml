@@ -1,0 +1,12 @@
+score_levels:
+  - raw_emission
+  - validated_axc_out
+  - interpreted_projection
+  - text_projection
+primary_scores:
+  - StructuredEpistemicScore
+  - FairnessComplianceScore
+secondary_scores:
+  - TextProjectionScore
+  - GeometryEvidenceScore
+external_llm_judging_allowed: false
