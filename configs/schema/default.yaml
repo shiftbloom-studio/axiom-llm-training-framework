@@ -1,4 +1,6 @@
 schema_version: "0.1.0"
+public_project: Axiom
+legacy_internal_package: hcaps
 contract:
   capsule_model: hcaps.schema.capsule.HoloCapsule
   manifest_model: hcaps.schema.manifest.DatasetManifest

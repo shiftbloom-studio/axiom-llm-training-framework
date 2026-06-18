@@ -30,6 +30,7 @@ class SourceDocument(BaseModel):
     source_url: str | None = None
     domains: list[str] = Field(default_factory=list)
     temporal_cutoff_at: AwareDatetime | None = None
+    page_number: int | None = Field(default=None, ge=1)
     reader_name: str = Field(min_length=1)
     reader_version: str = Field(min_length=1)
 

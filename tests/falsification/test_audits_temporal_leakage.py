@@ -21,6 +21,6 @@ def test_future_leakage_fixture_produces_finding() -> None:
 
     assert len(findings) >= 1
     assert {finding.audit for finding in findings} == {"temporal_leakage"}
-    assert {
-        finding.capsule_id for finding in findings
-    } == {"axc:sha256:e4c463b25aa58cdc607324d1ed4caa3e7181d663e14ccae83d888516d15d5653"}
+    assert {finding.capsule_id for finding in findings} == {
+        "axc:sha256:e4c463b25aa58cdc607324d1ed4caa3e7181d663e14ccae83d888516d15d5653"
+    }

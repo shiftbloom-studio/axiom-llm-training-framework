@@ -1,3 +1,7 @@
+# Historical document. Superseded by CONCEPT.md and IMPLEMENTATION_ROADMAP.md.
+
+This file is an archived draft from the older roadmap shape. It is not the current P1 implementation plan. The next action is to create a new P1 plan from the current structured-native roadmap.
+
 # Plan 1 — Substrate & Corpus (implementation plan + agent prompt)
 
 Part of [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) · Concept: [../concept/CONCEPT.md](../concept/CONCEPT.md) · Phase A · Status: ☐ not started
@@ -51,19 +55,21 @@ Carry the first-class must-have: **synthetic views**.
    plus `RelationExtractor`, `EpistemicEstimator`, and `ViewGenerator`. Add a config-driven
    **registry** to select backend(s). Keep the existing `DeterministicClaimExtractor` as the
    offline fallback.
-2. **Credible default backend(s) behind the interface.**
-   - Default (recommended): **LLM-assisted** extraction of claims, typed/directional
-     relations, epistemic proxies, and synthetic views — with **schema-constrained output**
-     and full provenance (which model/version/prompt produced each field).
-   - First-class reproducible alternative: a **local-model** backend (no external API).
-   - Record the extractor identity per capsule so cross-extractor variation becomes context.
-   - *Governance:* using an external LLM supersedes the Step-1 "no external LLM API" rule —
-     ratify with a new ADR before bulk external use (offer: ADR-0010). The interface +
-     local/deterministic backends need no ratification.
-3. **Reproducibility for non-deterministic backends.** Cache and **content-hash** every
-   model prompt+output; record model id/version/prompt-hash + seed in the build manifest
-   (extend `src/hcaps/substrate/manifest.py`). A build must **replay from cache** byte-stable
-   without re-calling the model.
+2. **Model provider + local-first cascade.** Implement an **OpenAI-API-compatible provider**
+   (`base_url` + `model` + key) supporting **local and remote models as first-class**
+   (config-selected, swappable with no code change), plus a generic Python-callable provider;
+   keep `DeterministicClaimExtractor` as the offline fallback. Build the **cascade**: a local
+   model runs the bulk pass (full extraction — claims, typed/directional relations, epistemic
+   proxies, synthetic views — with **schema-constrained output** + a self-reported
+   confidence); an **escalation gate** routes low-confidence / high-impact items
+   (contradiction/supersession edges, gold, family-merge decisions) to a remote model; then
+   **merge**. The gate is **config-driven** (task→endpoint, thresholds) and **ablatable**
+   (gate off ⇒ single provider). Record provider/model identity per capsule (cross-extractor
+   signal).
+3. **Reproducibility (cache + hash + replay).** Cache and **content-hash** every model
+   prompt+output; record provider/model/config + prompt-hash + seed in the build manifest
+   (extend `src/hcaps/substrate/manifest.py`); a build must **replay from cache** byte-stable
+   without re-calling the model, and the produced dataset is content-hashed and pinned.
 4. **Real epistemic proxies (replace hardcoded constants).** In `src/hcaps/substrate/builder.py`,
    replace `ontic_compatibility=0.5`, `transformation_pressure=0.0`, `stability=UNKNOWN`,
    and doc-count "independence" with estimates from the backend — or explicit

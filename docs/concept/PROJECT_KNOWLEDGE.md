@@ -1,71 +1,64 @@
 # Project Knowledge
 
-The HoloCapsule project tests whether large language model pretraining improves
-when the unit of data is a structured claim-field object rather than a flat
-document stream.
+Status: Current | Updated: 2026-06-18 | See: [CONCEPT.md](CONCEPT.md)
 
-## Core Research Idea
+Axiom tests whether structured claim-field training improves epistemic competence compared with flat text under fair controls.
 
-Claim-field pretraining treats a claim as a re-identifiable knowledge object.
-The training unit is a `HoloCapsule`, not an arbitrary chunk. A capsule preserves
-the text surface while making claim identity, provenance, relations,
-uncertainty, temporal state, context, and future training targets explicit.
+The public project identity is Axiom. Historical source material may use HoloCapsule terminology; the internal package and some internal class names may still use `hcaps`/`HoloCapsule` for compatibility.
 
-This repository starts from the data contract because every later experiment
-depends on whether the substrate faithfully separates:
+## Research Thesis
 
-- text surface from claim identity;
-- evidence from popularity;
-- independent redundancy from raw mention count;
-- current epistemic status from historical status;
-- relation labels from free-form annotation text;
-- future-facing targets from model-visible inputs.
+Axiom treats claims as structured, temporally scoped, provenance-aware claim-states rather than plain token spans.
 
-## HoloCapsule as Training Substrate
+The primary substrate preserves:
 
-A HoloCapsule is intended to become the unit from which future collators emit
-text, side channels, relation neighborhoods, provenance targets, epistemic
-scalars, and objective masks. The storage layer is therefore part of the active
-learning substrate. It is not just a file dump.
+- claim identity;
+- provenance;
+- relations;
+- temporal scope;
+- lateral context;
+- epistemic state;
+- target availability and loss masks;
+- optional gauge-invariant geometry.
 
-The initial storage formats are JSONL and Parquet because they are inspectable,
-reproducible, and easy to hash. Later stages may add graph, vector, or tensor
-layouts only after the contract proves stable.
+Text is a projection and comparison interface, not the primary system boundary.
 
-## First-Class Information
+## Format Family
 
-The schema treats the following as first-class:
-
-- provenance and source timestamps;
-- typed relations such as `supports`, `contradicts`, and `supersedes`;
-- uncertainty and bounded epistemic scalars;
-- temporal cutoffs for leakage prevention;
-- context fibers and community identifiers;
-- quality and lineage metadata;
-- optional experimental geometric summaries.
+- AXF: Axiom Exchange Format.
+- AXC: Axiom Capsule Stream.
+- AXP: Axiom Package.
+- AXT: Axiom Tensor Bundle.
+- AXC-out: structured Axiom model emission.
 
 ## Redundancy Discipline
 
-Redundancy is represented as an independent-community effective count. It is not
-raw popularity, citation count, view count, or duplicate text frequency. The
-schema enforces this distinction by naming the redundancy measure explicitly and
-rejecting basis descriptions that collapse it into raw count proxies.
+Independent redundancy is not popularity, citation count, mention count, or duplicate text frequency. It is a claim-field signal that must be ablated and controlled.
 
-No redundancy law is hard-coded into the repository. Later experiments must be
-able to test, ablate, or discard any proposed relationship.
+Do not hard-code redundancy as correctness.
 
-## HKR and Geometry
+## Geometry Discipline
 
-HKR-inspired geometric components are optional and ablatable. When present, they
-must be reported as gauge-invariant summaries such as loop norm, trace summary,
-spectrum summary, or curvature score. Raw gauge matrices are not schema fields.
+Geometry is in-plan, experimental, ablatable, and gauge-invariant. Raw learned matrices are implementation artifacts, not canonical semantic fields.
 
-The project does not assume geometry will help. Context-shuffle and
-parameter-matched controls must be able to falsify that branch.
+Context-shuffle and parameter-matched controls must be able to falsify any geometry contribution.
+
+## Provider Discipline
+
+Provider-backed extraction may be used for data construction only. It must be cached, hashed, replayable, manifest-backed, config-driven, and provider-identity tracked.
+
+Provider identity and slant are lateral context.
 
 ## Evaluation Posture
 
-The project is falsification-first. It should preserve negative results and make
-failure modes distinguishable: poor extraction, weak side-channel use, decorative
-geometry, popularity confounds, temporal leakage, or a core hypothesis that does
-not beat flat text under fair controls.
+The project is falsification-first. It should make failure modes distinguishable:
+
+- poor extraction;
+- weak structured supervision;
+- decorative structure;
+- geometry not carrying real context signal;
+- popularity confounds;
+- temporal leakage;
+- a structured-native hypothesis that does not beat flat text under fair controls.
+
+Negative results are valid research outcomes.

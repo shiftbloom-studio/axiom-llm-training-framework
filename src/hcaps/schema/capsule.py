@@ -1,4 +1,8 @@
-"""Canonical HoloCapsule data contract."""
+"""Canonical Axiom claim-state data contract.
+
+The `HoloCapsule` model name is legacy internal compatibility. Public artifacts
+and documentation use Axiom, Claim-State Capsule, AXC, AXP, AXT, and AXC-out.
+"""
 
 from __future__ import annotations
 
@@ -266,7 +270,10 @@ class LineageRecord(BaseModel):
 
 
 class HoloCapsule(BaseModel):
-    """Versioned, validated unit of HoloCapsule claim-field pretraining data."""
+    """Versioned, validated Axiom claim-state capsule.
+
+    The class name remains for legacy internal compatibility.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 

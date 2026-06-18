@@ -9,6 +9,8 @@ AXF is the Axiom Exchange Format family:
 - AXP is the Axiom Package: a dataset package with manifests, hashes, splits, and reports.
 - AXT is the Axiom Tensor Bundle: the future compiled tensor format, specified but not
   implemented in this step.
+- AXC-out is the future structured model emission format, specified but not implemented in
+  these fixtures.
 
 Valid fixtures:
 

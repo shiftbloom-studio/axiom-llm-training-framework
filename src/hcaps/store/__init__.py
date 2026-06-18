@@ -1,4 +1,4 @@
-"""Storage backends for HoloCapsule datasets."""
+"""Storage backends for Axiom claim-state datasets."""
 
 from hcaps.store.base import (
     CapsuleStore,

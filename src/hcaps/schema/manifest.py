@@ -42,7 +42,7 @@ class ManifestFile(BaseModel):
 
 
 class DatasetManifest(BaseModel):
-    """Versioned manifest for reproducible HoloCapsule datasets."""
+    """Versioned manifest for reproducible Axiom claim-state datasets."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 

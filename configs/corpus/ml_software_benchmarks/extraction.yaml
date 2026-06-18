@@ -1,0 +1,15 @@
+schema_version: "0.1.0"
+prompt_template_versions:
+  claim_extraction: claim_extraction_v0.1
+  relation_extraction: relation_extraction_v0.1
+  epistemic_extraction: epistemic_extraction_v0.1
+  structured_view_generation: view_generation_v0.1
+outputs:
+  claim_families: claim_families.jsonl
+  relation_candidates: relation_candidates.jsonl
+  negative_pools: negative_pools.jsonl
+rules:
+  no_binary_truth_labels: true
+  temporal_axis_separate_from_lateral_context: true
+  provider_identity_is_lateral_context: true
+  missing_targets_require_loss_masks_later: true

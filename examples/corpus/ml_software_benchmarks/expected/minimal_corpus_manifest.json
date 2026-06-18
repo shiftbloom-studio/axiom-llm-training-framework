@@ -1,0 +1,16 @@
+{
+  "corpus_id": "axiom.ml_software_benchmark_claims.fixture",
+  "corpus_version": "0.1.0",
+  "domain": ["machine_learning", "software_engineering", "benchmarking"],
+  "expected_artifacts": [
+    "corpus_manifest.json",
+    "provider_cache_manifest.json",
+    "extraction_trace.jsonl",
+    "source_registry.jsonl",
+    "claim_families.jsonl",
+    "relation_candidates.jsonl",
+    "negative_pools.jsonl",
+    "gold_candidates.jsonl",
+    "dataset.axp"
+  ]
+}

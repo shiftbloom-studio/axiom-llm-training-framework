@@ -13,7 +13,7 @@ Expected layout:
     capsules.axc
     sources.axsrc
     relations.axr
-    contexts.parquet
+    contexts.axctx
     provenance.parquet
 
   splits/
@@ -30,6 +30,10 @@ Expected layout:
     leakage_report.json
     deduplication_report.json
     confound_controls.json
+    negative_sampling.json
+    provider_report.json
+    license_report.json
+    quality_report.json
 
   compiled/
     README.md
@@ -39,9 +43,9 @@ Expected layout:
     schema_snapshot.json
 ```
 
-The canonical v0.1 package helper writes `capsules.axc`, `sources.axsrc`, and
-`relations.axr` as UTF-8 newline-delimited canonical JSON streams. Parquet
-tables and compiled tensors are reserved for later stages.
+The canonical v0.1 package helper writes `capsules.axc`, `sources.axsrc`,
+`relations.axr`, and P1 `contexts.axctx` as UTF-8 newline-delimited canonical
+JSON streams. Parquet tables and compiled tensors are reserved for later stages.
 
 ## Root Manifest
 
@@ -59,7 +63,8 @@ The root manifest is `axiom.json`:
     "axf": "0.1.0",
     "axc": "0.1.0",
     "axp": "0.1.0",
-    "axt": "0.1.0"
+    "axt": "0.1.0",
+    "axc_out": "0.1.0"
   },
   "files": [],
   "counts": {},
@@ -81,3 +86,23 @@ AXP reserves control manifests for:
 - relation ablations;
 - geometry-disabled ablations;
 - provenance-disabled ablations.
+
+## Provider and Sampling Manifests
+
+Provider-backed construction manifests must record provider identity, provider
+family, provider mode, model name, confidence, escalation reason, merge decision,
+and disagreement sets where available. Provider identity is lateral context and
+must be ablatable.
+
+Negative-sampling manifests should be deterministic and hashable. They reserve
+metadata for relation negatives, provenance negatives, context negatives,
+temporal negatives, near-but-distinct claims, and same-topic unrelated claims.
+
+## Compiled Artifacts
+
+Compiled artifacts belong under `compiled/` and must trace back to package
+hashes. Future AXT artifacts must include input tensors, target/output tensors,
+loss masks, target availability, temporal masks, and source manifest hashes.
+
+Future AXC-out evaluation artifacts must preserve raw emissions separately from
+validated and interpreted projections.

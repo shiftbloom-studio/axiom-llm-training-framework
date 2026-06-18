@@ -1,5 +1,7 @@
 # HKR To AXF Mapping
 
+Status: Current | Updated: 2026-06-18 | See: [CONCEPT.md](CONCEPT.md)
+
 This document records the project interpretation that maps HKR-inspired research
 concepts into neutral AXF data fields. The source-material folder contains
 `HKR_ML_Approach_Chapter.pdf`; this mapping summarizes operational design
@@ -18,6 +20,8 @@ implications rather than quoting source text.
 | R proxy | `epistemic_state.independent_redundancy` |
 | context transport / curvature | optional `geometry` section |
 | gauge identifiability | `geometry.gauge_policy = gauge_invariant_observables_only` |
+| structured tensor bridge | AXT input and target tensors |
+| structured model emission | AXC-out with raw, validated, interpreted, and text-projection layers |
 | falsification-first methodology | AXP splits, holdouts, controls, and ablation manifests |
 | no truth labels | stabilization, revision, uncertainty, and provenance fields |
 
@@ -29,9 +33,12 @@ contradiction, revision, and stabilization dynamics.
 
 ## Geometry Is Reserved
 
-AXF v0.1 reserves `geometry` for future context-transport observables. Canonical
+AXF and AXC-out reserve geometry for context-transport observables. Canonical
 records allow gauge-invariant summaries only. Raw learned connection matrices may
-exist later in experiment artifacts, but they are not stable semantic AXF data.
+exist later in experiment artifacts, but they are not stable semantic fields.
+
+Axiom tests whether these observables have predictive or epistemic utility. It
+does not prove HKR.
 
 ## Falsification Path
 

@@ -21,7 +21,8 @@ format_version = "0.1.0"
 - `relations`: typed relation candidates to other claim families.
 - `geometry`: optional reserved gauge-invariant observables.
 - `provenance`: source references and construction method.
-- `training`: eligibility and target/future-label field declarations.
+- `training`: eligibility, target declarations, target availability, and loss-mask
+  compatibility metadata.
 - `quality`: extraction confidence, notes, and warnings.
 
 ## Identifier Examples
@@ -48,6 +49,31 @@ ctx:<slug-or-hash>
 - Independent redundancy accepts values greater than `1` but rejects negatives.
 - Binary truth fields such as `truth`, `is_true`, or `correct` are forbidden.
 - Raw geometry matrices are rejected because extra geometry fields are forbidden.
+- Target-only or future-facing fields must not be rendered into predictor text or
+  predictor-side AXT tensors.
+
+## Target and Mask Policy
+
+AXC may declare future-facing or optional targets, but missing targets are never
+negative examples. AXT compilation must convert target availability into explicit
+loss masks.
+
+Reserved mask concepts include:
+
+```text
+loss_mask_text_projection
+loss_mask_relation
+loss_mask_provenance
+loss_mask_evidence_span
+loss_mask_stability
+loss_mask_uncertainty
+loss_mask_future_summary
+loss_mask_geometry
+loss_mask_context_transport
+```
+
+Relation, provenance, and context objectives require deterministic negative or
+hard-negative sampling metadata in AXT/AXP manifests.
 
 ## Example Shape
 

@@ -1,0 +1,16 @@
+corpus_id: axiom.ml_software_benchmark_claims.fixture
+corpus_version: "0.1.0"
+domain:
+  - machine_learning
+  - software_engineering
+  - benchmarking
+dataset_name: ml_software_benchmarks_fixture
+input_path: ../sources
+output_dir: ../../../../artifacts/examples/ml_software_benchmarks
+provider_config_path: ../../../../configs/corpus/ml_software_benchmarks/ingress.yaml
+cutoff_date: 2026-01-01
+max_chunk_chars: 420
+claim_family_similarity_threshold: 0.72
+strict_temporal_cutoff: true
+pdf_reader_enabled: false
+pdf_reader_required: false

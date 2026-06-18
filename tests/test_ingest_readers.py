@@ -45,3 +45,20 @@ def test_invalid_sidecar_warns_or_errors(tmp_path: Path) -> None:
 
     with pytest.raises(ReaderError, match="invalid sidecar metadata"):
         read_source_documents(source, _config(source, tmp_path, policy="error"))
+
+
+def test_pdf_reader_disabled_warning_and_required_error(tmp_path: Path) -> None:
+    source = tmp_path / "paper.pdf"
+    source.write_bytes(b"%PDF-1.4\nsynthetic fixture\n")
+
+    documents, warnings, skipped = read_source_documents(source, _config(source, tmp_path))
+
+    assert documents == []
+    assert skipped == 1
+    assert warnings[0].code == "pdf_reader_disabled"
+
+    required = _config(source, tmp_path).model_copy(
+        update={"pdf_reader_enabled": False, "pdf_reader_required": True}
+    )
+    with pytest.raises(ReaderError, match="PDF reader interface is disabled"):
+        read_source_documents(source, required)
