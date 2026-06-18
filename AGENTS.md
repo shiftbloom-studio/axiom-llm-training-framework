@@ -123,6 +123,10 @@ After P2, do not implement the AXT compiler by inventing field semantics. Use
 `docs/work/P2_HANDOFF_TO_P3.md`, `spec/FIELD_REGISTRY_V1.md`, and
 `spec/VOCABULARY_REGISTRY_V1.md`.
 
+After P3, P4/P5/P6 agents must consume AXT through `hcaps.axt` bundle,
+dataset, batch, and validation interfaces. Do not make the model parse AXC
+directly unless a plan explicitly adds a compatibility adapter.
+
 ---
 
 ## 6. Quality gates
@@ -429,7 +433,7 @@ Always store and score raw emissions separately.
 
 ### Mistake: confusing Step 3 with P3
 
-Legacy Step 3 is a lightweight training bridge. P3 is the structured-native model program. They are not the same.
+Legacy Step 3 is a lightweight training bridge. P3 is the AXT compiler/runtime data-interface program. P4 is the structured-native model program. They are not the same.
 
 ### Mistake: confusing Step 4 with P6
 

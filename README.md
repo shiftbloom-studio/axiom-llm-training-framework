@@ -15,7 +15,7 @@ Current repository status:
 - Foundation, substrate, AXF/AXC/AXP format support, provider-aware P1 corpus ingress, a lightweight training bridge, and falsification-preparation artifacts exist.
 - P1 adds deterministic/local/remote-compatible data-construction providers, replayable provider caches, trace/disagreement manifests, source registries, negative pools, gold-reference candidate hooks, and a tiny synthetic ML/software benchmark corpus fixture.
 - P2 defines AXF v1, AXC v1, AXP v1, AXT v1, AXC-out v1, field/vocabulary registries, masks, negative sampling, provider traces, and interpreter boundaries.
-- AXT is specified as the tensor bridge, but the production AXT compiler is not complete.
+- P3 implements the AXT compiler, safetensors bundle writer/reader, runtime dataset/batch interface, inspection/validation CLI, provider-context tensors, negative-sample tensors, relation neighborhoods, geometry slots, text projection tensors, targets, and masks.
 - AXC-out is specified as the structured model emission format, but the runtime decoder/interpreter is not complete.
 - The v1 structured-native model, learned geometry module, multi-objective training runtime, and evaluation verdict are not complete.
 - No benchmark or model-performance claim is made by this repository.
@@ -23,10 +23,10 @@ Current repository status:
 The next implementation action is:
 
 ```text
-Create Implementation Plan P3: AXT Compiler & Runtime Data Interface.
+Create Implementation Plan P4: Structured-Native Model Stack.
 ```
 
-P1 and P2 are substrate/interface work only. They do not train the model or produce an evaluation verdict.
+P1-P3 are substrate/interface/compiler work only. They do not train the model or produce an evaluation verdict.
 
 ## Format Family
 
@@ -125,6 +125,24 @@ axiom corpus gold export \
   --output artifacts/examples/ml_software_benchmarks/gold_candidates.jsonl
 ```
 
+Compile an AXP package into an AXT tensor bundle:
+
+```bash
+axiom axt compile \
+  --input examples/axf/v0_1/minimal_dataset.axp \
+  --output artifacts/axt/minimal.axt \
+  --config configs/axt/compile_smoke.yaml \
+  --allow-all-without-split
+```
+
+Inspect and validate an AXT bundle:
+
+```bash
+axiom axt inspect artifacts/axt/minimal.axt
+axiom axt validate artifacts/axt/minimal.axt
+axiom axt tensor artifacts/axt/minimal.axt --group text_projection
+```
+
 Create falsification-preparation artifacts:
 
 ```bash
@@ -192,6 +210,8 @@ Start with:
 - [docs/concept/DECISIONS.md](docs/concept/DECISIONS.md)
 - [docs/work/IMPLEMENTATION_ROADMAP.md](docs/work/IMPLEMENTATION_ROADMAP.md)
 - [docs/work/P2_HANDOFF_TO_P3.md](docs/work/P2_HANDOFF_TO_P3.md)
+- [docs/work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](docs/work/P3_AXT_COMPILER_HANDOFF_TO_P4.md)
+- [docs/concept/AXT_RUNTIME_DATA_INTERFACE.md](docs/concept/AXT_RUNTIME_DATA_INTERFACE.md)
 - [spec/AXF_V1.md](spec/AXF_V1.md)
 - [docs/README.md](docs/README.md)
 

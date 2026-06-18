@@ -12,6 +12,7 @@ license = "Apache-2.0"
 authors = [{ name = "Axiom contributors" }]
 maintainers = [{ name = "Shiftbloom Studio" }]
 dependencies = [
+  "numpy>=2.4.6",
   "orjson>=3.10.18",
   "polars>=1.31.0",
   "pyarrow>=20.0.0",
@@ -19,6 +20,7 @@ dependencies = [
   "pydantic-settings>=2.9.0",
   "pyyaml>=6.0.2",
   "rich>=14.0.0",
+  "safetensors>=0.8.0",
   "typer>=0.16.0",
 ]
 

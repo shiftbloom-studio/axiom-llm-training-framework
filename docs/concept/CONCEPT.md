@@ -76,8 +76,14 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
   [CORPUS_PROVIDER_INGRESS.md](CORPUS_PROVIDER_INGRESS.md))
 - **P2 interface lock:** AXF v1, AXC v1, AXP v1, AXT v1, AXC-out v1, field/vocabulary
   registries, loss/target masks, negative-sampling metadata, provider traces, and
-  interpreter boundaries are specified in `spec/*_V1.md`. P3 must implement the compiler
-  against [../work/P2_HANDOFF_TO_P3.md](../work/P2_HANDOFF_TO_P3.md), not invent semantics.
+  interpreter boundaries are specified in `spec/*_V1.md`. P3 implemented the compiler
+  against [../work/P2_HANDOFF_TO_P3.md](../work/P2_HANDOFF_TO_P3.md) without inventing
+  new field semantics.
+- **P3 compiler/runtime interface:** `hcaps.axt` compiles AXC/AXP inputs into
+  safetensors-backed AXT bundles with structured inputs, targets, availability masks,
+  loss masks, provider context, negative samples, geometry slots, text projection tensors,
+  and runtime dataset/batch surfaces. P3 does not build the model, train, evaluate, or
+  decode AXC-out.
 - **First corpus domain:** ML / software benchmark claims.
 
 ## 4. Owner decisions (meaning preserved, in order)

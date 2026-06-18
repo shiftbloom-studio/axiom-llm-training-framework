@@ -1,0 +1,20 @@
+input_path: ../../examples/axf/v0_1/minimal_dataset.axp
+output_path: ../../artifacts/axt/no_geometry_smoke.axt
+field_registry_path: ../../spec/FIELD_REGISTRY_V1.md
+vocabulary_registry_path: ../../spec/VOCABULARY_REGISTRY_V1.md
+split_name: null
+allow_all_without_split: true
+render_text_projection_modes:
+  - flat_text
+  - structured_text
+  - capsule_text
+max_text_length: 128
+include_provider_context: true
+include_relation_neighborhoods: true
+include_negative_samples: true
+include_geometry_slots: false
+include_evaluation_references: false
+strict_temporal_masks: true
+strict_schema_validation: true
+hash_artifacts: true
+seed: 13
