@@ -1,0 +1,534 @@
+*** End Patch
+
+*** Begin Patch
+*** Add File: src/hcaps/training_bridge/dataset.py
++"""Dataset for Axiom AXC/AXP capsules.
++
++The `AxcTrainingDataset` class loads a stream of capsules from a `.axc`
++file or from a canonical capsules file inside an `.axp` package. Each
++element of the dataset yields tokenized inputs, attention masks,
++labels for next-token prediction, capsule identifiers, claim family
++identifiers, and optional side-channel features.
++
++This implementation reads all capsules into memory at construction
++time for simplicity. Future versions may stream from disk or use
++memory-mapped files. Side channels are numeric features extracted via
++`extract_side_channels`. No truth labels are stored in the text or
++side channels.
++"""
++
++from __future__ import annotations
++
++import json
++import os
++from pathlib import Path
++from typing import Dict, List, Optional, Union, Iterable, Any
++
++from .tokenizer import TokenizerProtocol
++from .examples import (
++    render_flat_text,
++    render_structured_text,
++    render_capsule_text,
++)
++from .side_channels import extract_side_channels
++
++
++def _iter_capsules_from_axc(path: Path) -> Iterable[Dict[str, Any]]:
++    """Yield JSON objects from a `.axc` file.
++
++    The `.axc` format is newline-delimited JSON. Blank lines are
++    skipped. Errors in parsing raise ValueError.
++    """
++    with open(path, "r", encoding="utf-8") as f:
++        for line in f:
++            line = line.strip()
++            if not line:
++                continue
++            try:
++                obj = json.loads(line)
++                yield obj
++            except json.JSONDecodeError as e:
++                raise ValueError(f"Invalid JSON in {path}: {e}") from e
++
++
++def _find_capsules_file_in_axp(axp_path: Path) -> Path:
++    """Locate the canonical capsules file inside an `.axp` package.
++
++    By convention, the capsules file is located at
++    `<axp>/data/capsules.axc`. If the file is missing, a
++    FileNotFoundError is raised.
++    """
++    data_dir = axp_path / "data"
++    candidate = data_dir / "capsules.axc"
++    if not candidate.exists():
++        raise FileNotFoundError(
++            f"Could not find capsules file at {candidate}. Ensure your AXP package "
++            "contains a data/capsules.axc file."
++        )
++    return candidate
++
++
++class AxcTrainingDataset:
++    """Iterate over AXC capsules and tokenize them for pretraining."""
++
++    def __init__(
++        self,
++        path: Union[str, Path],
++        tokenizer: TokenizerProtocol,
++        mode: str = "flat_text",
++        max_length: Optional[int] = None,
++        include_side_channels: bool = False,
++    ) -> None:
++        self.tokenizer = tokenizer
++        self.mode = mode
++        self.max_length = max_length
++        self.include_side_channels = include_side_channels
++        p = Path(path)
++        if p.suffix == ".axc":
++            capsule_iter = _iter_capsules_from_axc(p)
++        elif p.suffix == ".axp":
++            capsules_path = _find_capsules_file_in_axp(p)
++            capsule_iter = _iter_capsules_from_axc(capsules_path)
++        else:
++            raise ValueError(f"Unsupported file extension for dataset: {p}")
++        self._records: List[Dict[str, Any]] = list(capsule_iter)
++
++        # Pre-build texts for each record based on the selected mode
++        self._texts: List[str] = []
++        for cap in self._records:
++            if mode == "flat_text":
++                txt = render_flat_text(cap)
++            elif mode == "structured_text":
++                txt = render_structured_text(cap)
++            elif mode == "capsule":
++                txt = render_capsule_text(cap)
++            else:
++                raise ValueError(f"Unknown mode: {mode}")
++            self._texts.append(txt)
++
++    def __len__(self) -> int:
++        return len(self._records)
++
++    def __getitem__(self, idx: int) -> Dict[str, Any]:
++        cap = self._records[idx]
++        text = self._texts[idx]
++        input_ids = self.tokenizer.encode(text, max_length=self.max_length)
++        # For next-token prediction, labels are the same as input_ids
++        labels = input_ids.copy()
++        attention_mask = [1] * len(input_ids)
++        item: Dict[str, Any] = {
++            "input_ids": input_ids,
++            "attention_mask": attention_mask,
++            "labels": labels,
++            "capsule_id": cap.get("ids", {}).get("capsule_id"),
++            "claim_family_id": cap.get("ids", {}).get("claim_family_id"),
++        }
++        if self.include_side_channels:
++            item["side_channels"] = extract_side_channels(cap)
++        return item
+*** End Patch
+
+*** Begin Patch
+*** Add File: src/hcaps/training_bridge/collator.py
++"""Batch collation for training.
++
++The TrainingCollator pads sequences in a batch to the same length
++using the tokenizer's pad token ID. It also handles padding labels
++with ``-100`` so that padding tokens are ignored by loss functions in
++many deep learning frameworks. Side channels are stacked into a list
++of lists (2D structure) if present.
++"""
++
++from __future__ import annotations
++
++from typing import Any, Dict, List, Optional
++
++
++class TrainingCollator:
++    """Callable that collates a list of dataset items into a batch."""
++
++    def __init__(self, pad_token_id: int) -> None:
++        self.pad_token_id = pad_token_id
++
++    def __call__(self, batch: List[Dict[str, Any]]) -> Dict[str, Any]:
++        # Compute max sequence length in the batch
++        max_len = max(len(item["input_ids"]) for item in batch)
++        padded_input_ids: List[List[int]] = []
++        padded_attention: List[List[int]] = []
++        padded_labels: List[List[int]] = []
++        capsule_ids: List[Optional[str]] = []
++        claim_family_ids: List[Optional[str]] = []
++        side_channels: Optional[List[List[float]]] = [] if "side_channels" in batch[0] else None
++        for item in batch:
++            ids = item["input_ids"]
++            mask = item["attention_mask"]
++            labels = item["labels"]
++            pad_len = max_len - len(ids)
++            padded_input_ids.append(ids + [self.pad_token_id] * pad_len)
++            padded_attention.append(mask + [0] * pad_len)
++            padded_labels.append(labels + [-100] * pad_len)
++            capsule_ids.append(item.get("capsule_id"))
++            claim_family_ids.append(item.get("claim_family_id"))
++            if side_channels is not None:
++                side_channels.append(item["side_channels"])
++        batch_dict: Dict[str, Any] = {
++            "input_ids": padded_input_ids,
++            "attention_mask": padded_attention,
++            "labels": padded_labels,
++            "capsule_id": capsule_ids,
++            "claim_family_id": claim_family_ids,
++        }
++        if side_channels is not None:
++            batch_dict["side_channels"] = side_channels
++        return batch_dict
+*** End Patch
+
+*** Begin Patch
+*** Add File: src/hcaps/training_bridge/side_channels.py
++"""Extraction of side-channel features.
++
++Side-channel features are numeric values derived from the capsule's
++epistemic and relational metadata. They serve as auxiliary inputs to
++the model but are kept separate from the text to avoid conflating
++epistemic status with the language signal. All numeric fields are
++converted to floats. Missing values default to zero.
++"""
++
++from __future__ import annotations
++
++from typing import Dict, List, Any
++
++
++def extract_side_channels(capsule: Dict[str, Any]) -> List[float]:
++    """Extract numeric side-channel features from a capsule.
++
++    Features extracted in order:
++
++    1. ontology_compatibility value
++    2. evidential_anchoring value
++    3. transformation_pressure value
++    4. independent_redundancy value
++    5. uncertainty value
++    6. relation_count
++    7. provenance_source_count
++    8. geometry_enabled (1.0 if geometry.enabled is true, else 0.0)
++    """
++    es = capsule.get("epistemic_state", {})
++    def _extract_value(field: str) -> float:
++        val = es.get(field)
++        if isinstance(val, dict):
++            return float(val.get("value", 0.0) or 0.0)
++        if isinstance(val, (int, float)):
++            return float(val)
++        return 0.0
++    features: List[float] = []
++    for key in [
++        "ontology_compatibility",
++        "evidential_anchoring",
++        "transformation_pressure",
++        "independent_redundancy",
++        "uncertainty",
++    ]:
++        features.append(_extract_value(key))
++    # Count relations
++    rels = capsule.get("relations", [])
++    features.append(float(len(rels)))
++    # Count provenance sources
++    prov = capsule.get("provenance", {}).get("sources", [])
++    features.append(float(len(prov)))
++    # Geometry enabled flag
++    geom = capsule.get("geometry", {})
++    features.append(1.0 if geom.get("enabled") else 0.0)
++    return features
+*** End Patch
+
+*** Begin Patch
+*** Add File: src/hcaps/training_bridge/manifests.py
++"""Training bridge manifest models.
++
++The manifest captures metadata about a processed dataset for
++reproducibility. A manifest can be serialized to and from JSON. This
++simple implementation uses a dataclass-like pattern without relying
++on Pydantic to minimise dependencies at this stage of the project.
++"""
++
++from __future__ import annotations
++
++import json
++from dataclasses import dataclass, asdict
++from datetime import datetime
++from pathlib import Path
++from typing import Dict, Any, Optional
++
++
++@dataclass
++class TrainingBridgeManifest:
++    """Metadata record for a processed AXC/AXP dataset."""
++
++    input_path: str
++    input_hash: Optional[str]
++    tokenizer_type: str
++    tokenizer_vocab_size: int
++    mode: str
++    max_length: Optional[int]
++    include_side_channels: bool
++    record_count: int
++    created_at: str
++    version: str = "0.1.0"
++
++    def to_json(self) -> str:
++        return json.dumps(asdict(self), ensure_ascii=False, indent=2)
++
++    def save(self, path: Path) -> None:
++        with open(path, "w", encoding="utf-8") as f:
++            f.write(self.to_json())
++
++    @classmethod
++    def load(cls, path: Path) -> "TrainingBridgeManifest":
++        with open(path, "r", encoding="utf-8") as f:
++            data: Dict[str, Any] = json.load(f)
++        return cls(**data)
++
++    @staticmethod
++    def create(
++        input_path: str,
++        input_hash: Optional[str],
++        tokenizer_type: str,
++        tokenizer_vocab_size: int,
++        mode: str,
++        max_length: Optional[int],
++        include_side_channels: bool,
++        record_count: int,
++    ) -> "TrainingBridgeManifest":
++        return TrainingBridgeManifest(
++            input_path=input_path,
++            input_hash=input_hash,
++            tokenizer_type=tokenizer_type,
++            tokenizer_vocab_size=tokenizer_vocab_size,
++            mode=mode,
++            max_length=max_length,
++            include_side_channels=include_side_channels,
++            record_count=record_count,
++            created_at=datetime.utcnow().isoformat() + "Z",
++        )
+*** End Patch
+
+*** Begin Patch
+*** Add File: tests/training_bridge/test_tokenizer.py
++import os
++from pathlib import Path
++
++from hcaps.training_bridge.tokenizer import WhitespaceTokenizer
++
++
++def test_whitespace_tokenizer_roundtrip(tmp_path: Path) -> None:
++    texts = ["Hello world", "Testing tokenizer"]
++    tok = WhitespaceTokenizer()
++    tok.fit(texts)
++    encoded = [tok.encode(t) for t in texts]
++    decoded = [tok.decode(ids) for ids in encoded]
++    assert decoded[0] == "hello world"
++    assert decoded[1] == "testing tokenizer"
++    # Test save/load
++    file_path = tmp_path / "tok.json"
++    tok.save(file_path)
++    tok2 = WhitespaceTokenizer.load(file_path)
++    assert tok2.decode(tok2.encode("hello world")) == "hello world"
+*** End Patch
+
+*** Begin Patch
+*** Add File: tests/training_bridge/test_dataset.py
++import json
++from pathlib import Path
++
++from hcaps.training_bridge.dataset import AxcTrainingDataset
++from hcaps.training_bridge.tokenizer import WhitespaceTokenizer
++
++
++def test_axc_training_dataset_flat_mode(tmp_path: Path) -> None:
++    # Create a small AXC file with two capsules
++    axc_path = tmp_path / "sample.axc"
++    capsules = [
++        {
++            "ids": {"capsule_id": "c1", "claim_family_id": "f1"},
++            "claim": {"canonical": "The sky is blue"},
++            "surface_forms": {"normalized_summary": "The sky is blue"},
++            "epistemic_state": {},
++        },
++        {
++            "ids": {"capsule_id": "c2", "claim_family_id": "f2"},
++            "claim": {"canonical": "Grass is green"},
++            "surface_forms": {"normalized_summary": "Grass is green"},
++            "epistemic_state": {},
++        },
++    ]
++    with open(axc_path, "w", encoding="utf-8") as f:
++        for cap in capsules:
++            f.write(json.dumps(cap) + "\n")
++    tok = WhitespaceTokenizer()
++    tok.fit(["The sky is blue", "Grass is green"])
++    ds = AxcTrainingDataset(axc_path, tok, mode="flat_text")
++    assert len(ds) == 2
++    item0 = ds[0]
++    assert item0["capsule_id"] == "c1"
++    assert item0["claim_family_id"] == "f1"
++    assert len(item0["input_ids"]) == 4
++    assert item0["labels"] == item0["input_ids"]
+*** End Patch
+
+*** Begin Patch
+*** Add File: docs/TRAINING_BRIDGE.md
++# Training Bridge
++
++The training bridge is the component that turns claim-centric AXF
++capsules into model-ready training examples. It sits between the
++structured data contract defined in earlier milestones and the
++machine learning models that consume token sequences and optional side
++channels.
++
++## Modes
++
++The bridge supports three text rendering modes:
++
++* **flat_text** – extracts only the canonical claim or best surface
++  representation. Use this as a baseline comparable to plain text
++  corpora.
++* **structured_text** – includes high-level labels such as the claim,
++  context and sources. This mode exposes epistemic structure without
++  overwhelming detail.
++* **capsule** – outputs a verbose, labelled representation of the
++  entire capsule. It is useful for models that can leverage rich
++  structural cues.
++
++## Tokenization
++
++Tokenization is performed by objects implementing the
++`TokenizerProtocol`. A simple baseline tokenizer splits on whitespace
++and lowercases tokens. Users may substitute a BPE or WordPiece
++tokenizer by implementing the protocol and ensuring that the same
++special token IDs are exposed.
++
++## Side Channels
++
++Side-channel features are numeric values derived from the capsule’s
++epistemic state, relation counts, provenance counts and geometry
++flags. They are provided separately from the tokenized text. Models
++may optionally consume these features to improve calibration or
++reasoning without encoding epistemic information in the language
++stream itself.
++
++## Data Loader and Collator
++
++The `AxcTrainingDataset` reads AXC capsules (or canonical capsule
++streams inside AXP packages) into memory and yields tokenized
++examples. The `TrainingCollator` pads variable-length sequences to
++uniform length within a batch, produces attention masks and label
++masks and stacks side-channel vectors.
++
++## Manifest
++
++A manifest records the configuration used to produce a dataset: input
++paths, tokenizer metadata, rendering mode, sequence length limits,
++whether side channels were included and the number of records. Use
++manifests to track experiments and ensure reproducibility.
+*** End Patch
+*** Begin Patch
+*** Add File: src/hcaps/training_bridge/examples.py
++"""Deterministic renderers for AXC capsules.
++
++This module provides functions to convert AXC capsules into textual
++representations for pretraining. The three functions defined here
++serve different purposes:
++
++* :func:`render_flat_text` returns the best available surface form
++  without any additional structure. Use this as a baseline similar to
++  conventional text-only pretraining.
++* :func:`render_structured_text` includes high-level labels such as
++  claim, context and sources, giving the model hints about epistemic
++  fields without overwhelming detail.
++* :func:`render_capsule_text` emits a verbose, labelled version of
++  the entire capsule. All top-level fields are prefixed by a label,
++  and nested values are flattened where appropriate. Future-only
++  target fields are excluded, and no truth labels are written.
++"""
++
++from __future__ import annotations
++
++from typing import Dict, Any, List
++
++
++def _get_surface_text(capsule: Dict[str, Any]) -> str:
++    """Return the best available surface text for a capsule.
++
++    Prefers ``normalized_summary`` over ``canonical`` surface form,
++    falling back to the canonical claim when necessary.
++    """
++    sf = capsule.get("surface_forms", {})
++    if sf.get("normalized_summary"):
++        return sf["normalized_summary"]
++    if sf.get("canonical"):
++        return sf["canonical"]
++    return capsule.get("claim", {}).get("canonical", "")
++
++
++def render_flat_text(capsule: Dict[str, Any]) -> str:
++    """Return a plain-text representation of the capsule."""
++    return _get_surface_text(capsule).strip()
++
++
++def render_structured_text(capsule: Dict[str, Any]) -> str:
++    """Return a lightly structured representation of the capsule."""
++    parts: List[str] = []
++    claim = capsule.get("claim", {}).get("canonical", "").strip()
++    if claim:
++        parts.append(f"Claim: {claim}")
++    context = capsule.get("context", {}).get("primary_context")
++    if context:
++        parts.append(f"Context: {context}")
++    provenance_titles: List[str] = []
++    for src in capsule.get("provenance", {}).get("sources", []):
++        title = src.get("title")
++        if title:
++            provenance_titles.append(title)
++    if provenance_titles:
++        parts.append("Sources: " + "; ".join(provenance_titles))
++    return "\n".join(parts)
++
++
++def render_capsule_text(capsule: Dict[str, Any]) -> str:
++    """Return a verbose labelled representation of the capsule."""
++    lines: List[str] = []
++    # Claim
++    claim = capsule.get("claim", {}).get("canonical", "").strip()
++    if claim:
++        lines.append(f"Claim: {claim}")
++    # Epistemic state (flatten values)
++    ep = capsule.get("epistemic_state", {})
++    for k, v in ep.items():
++        if isinstance(v, dict) and "value" in v:
++            lines.append(f"{k}: {v['value']}")
++        else:
++            lines.append(f"{k}: {v}")
++    # Relations
++    rels = capsule.get("relations", [])
++    if rels:
++        rel_descriptions = [
++            f"{rel.get('type', '?')}→{rel.get('target_claim_family_id', '?')}"
++            for rel in rels
++        ]
++        lines.append("Relations: " + "; ".join(rel_descriptions))
++    # Provenance titles
++    provenance_titles: List[str] = []
++    for src in capsule.get("provenance", {}).get("sources", []):
++        title = src.get("title")
++        if title:
++            provenance_titles.append(title)
++    if provenance_titles:
++        lines.append("Sources: " + "; ".join(provenance_titles))
++    # Context fields
++    context = capsule.get("context", {})
++    for key, value in context.items():
++        if value:
++            lines.append(f"{key}: {value}")
++    return "\n".join(lines)
+*** End Patch
