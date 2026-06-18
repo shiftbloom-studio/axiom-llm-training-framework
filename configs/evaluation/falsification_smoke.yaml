@@ -1,0 +1,11 @@
+input_path: examples/axf/v0_1/minimal_dataset.axp
+output_dir: artifacts
+seed: 13
+allow_all_without_split: true
+arms:
+  - flat_text
+  - structured_text
+  - capsule_text
+  - capsule_no_provenance
+  - capsule_no_relations
+  - context_shuffle

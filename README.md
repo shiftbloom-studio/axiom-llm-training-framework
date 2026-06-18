@@ -330,6 +330,26 @@ A result is only meaningful if it survives strong controls.
 
 ---
 
+## Falsification harness
+
+Step 4 is implemented as a torch-free artifact generator under
+`hcaps.falsification`. It creates reproducible comparison arms, ablations,
+shuffle controls, leakage audits, dataset diagnostics, and manifests for AXC/AXP
+claim capsules.
+
+Implemented CLI commands:
+
+```bash
+axiom falsify run examples/axf/v0_1/minimal_dataset.axp --output-dir artifacts --arms all --seed 13 --allow-all-without-split
+axiom falsify audit examples/axf/v0_1/minimal_dataset.axc --json
+axiom falsify report artifacts/falsification/<run_id>/manifest.json --output report.md
+```
+
+The harness writes artifacts and manifests only. It does not train models and it
+does not make model-result claims. See `docs/FALSIFICATION_HARNESS.md`.
+
+---
+
 ## Research roadmap
 
 The project is organized around five concrete milestones.

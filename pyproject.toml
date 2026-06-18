@@ -21,8 +21,12 @@ dependencies = [
   "typer>=0.16.0",
 ]
 
+[project.scripts]
+axiom = "hcaps.cli:app"
+
 [project.optional-dependencies]
 dev = [
+  "editables>=0.3",
   "mypy>=1.16.0",
   "pre-commit>=4.2.0",
   "pytest>=8.4.0",
@@ -33,11 +37,15 @@ dev = [
 [tool.uv]
 package = true
 
+[tool.hatch.build]
+dev-mode-exact = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/hcaps"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
+pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.coverage.run]
