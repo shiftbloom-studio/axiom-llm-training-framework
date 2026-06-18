@@ -1,11 +1,11 @@
 # P3 Handoff To P4
 
-Status: P3 implementation-complete handoff.
+Status: P3 implementation-complete handoff, consumed by P4.
 
-Exact next action:
+Current next action after P4:
 
 ```text
-Create Implementation Plan P4: Structured-Native Model Stack.
+Implement P5: Learned Geometry & Claim-Field Graph Dynamics.
 ```
 
 P3 implemented the executable AXT compiler/runtime data interface. It did not

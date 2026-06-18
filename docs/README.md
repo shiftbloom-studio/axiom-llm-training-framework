@@ -12,9 +12,12 @@ Axiom is a structured-native LLM training framework. The canonical concept, deci
 4. [../spec/AXF_V1.md](../spec/AXF_V1.md) - AXF v1 semantic contract.
 5. [concept/CORPUS_PROVIDER_INGRESS.md](concept/CORPUS_PROVIDER_INGRESS.md) - P1 corpus/provider ingress.
 6. [concept/AXT_RUNTIME_DATA_INTERFACE.md](concept/AXT_RUNTIME_DATA_INTERFACE.md) - P3 AXT compiler/runtime interface.
-7. [work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](work/P3_AXT_COMPILER_HANDOFF_TO_P4.md) - P3 handoff for P4/P5/P6.
-8. [work/P2_HANDOFF_TO_P3.md](work/P2_HANDOFF_TO_P3.md) - P2 handoff consumed by P3.
-9. [work/PRE_P1_DOCUMENTATION_AUDIT.md](work/PRE_P1_DOCUMENTATION_AUDIT.md) - record of the pre-P1 alignment pass.
+7. [MODEL_STACK.md](MODEL_STACK.md) - P4 structured-native model stack.
+8. [work/P4_HANDOFF_TO_P5.md](work/P4_HANDOFF_TO_P5.md) - geometry hook handoff.
+9. [work/P4_HANDOFF_TO_P6.md](work/P4_HANDOFF_TO_P6.md) - training/loss handoff.
+10. [work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](work/P3_AXT_COMPILER_HANDOFF_TO_P4.md) - P3 handoff consumed by P4.
+11. [work/P2_HANDOFF_TO_P3.md](work/P2_HANDOFF_TO_P3.md) - P2 handoff consumed by P3.
+12. [work/PRE_P1_DOCUMENTATION_AUDIT.md](work/PRE_P1_DOCUMENTATION_AUDIT.md) - record of the pre-P1 alignment pass.
 
 ## Active Folders
 
@@ -43,7 +46,7 @@ Historical files may contradict current terminology. When they do, follow:
 ## Current Next Action
 
 ```text
-Create Implementation Plan P4: Structured-Native Model Stack.
+Implement P5: Learned Geometry & Claim-Field Graph Dynamics.
 ```
 
 Do not start new work from archived Plan 1/Plan 2 documents. They are historical drafts from the old roadmap shape.

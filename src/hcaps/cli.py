@@ -12,7 +12,13 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from hcaps.axt import AxtCompileConfig, compile_axt, validate_axt_bundle
+from hcaps.axt import (
+    AxtBatchCollator,
+    AxtCompileConfig,
+    AxtDataset,
+    compile_axt,
+    validate_axt_bundle,
+)
 from hcaps.axt.inspect import compare_axt_bundles, inspect_axt_bundle, inspect_tensor_group
 from hcaps.corpus.builder import build_corpus
 from hcaps.corpus.gold import export_gold_candidates
@@ -26,6 +32,8 @@ from hcaps.falsification.runner import (
 )
 from hcaps.format.package import create_package_skeleton, inspect_package, validate_package
 from hcaps.format.streams import validate_axc_stream
+from hcaps.model import AxiomModelConfig, AxiomStructuredModel
+from hcaps.model.parameter_count import parameter_count
 from hcaps.providers.cache import ProviderCache
 from hcaps.providers.config import load_provider_ingress_config
 from hcaps.store.jsonl import JsonlCapsuleStore
@@ -41,11 +49,13 @@ corpus_providers_app = typer.Typer(help="Provider configuration checks.")
 corpus_cache_app = typer.Typer(help="Provider cache inspection.")
 corpus_gold_app = typer.Typer(help="Human-review candidate exports.")
 axt_app = typer.Typer(help="AXT tensor bundle compiler and runtime interface commands.")
+model_app = typer.Typer(help="Structured-native model stack developer commands.")
 app.add_typer(format_app, name="format")
 app.add_typer(package_app, name="package")
 app.add_typer(falsify_app, name="falsify")
 app.add_typer(corpus_app, name="corpus")
 app.add_typer(axt_app, name="axt")
+app.add_typer(model_app, name="model")
 corpus_app.add_typer(corpus_providers_app, name="providers")
 corpus_app.add_typer(corpus_cache_app, name="cache")
 corpus_app.add_typer(corpus_gold_app, name="gold")
@@ -385,6 +395,91 @@ def axt_compare_command(
     except Exception as exc:
         raise typer.BadParameter(str(exc)) from exc
     _print_payload(payload, json_output=json_output, title="AXT Compare")
+
+
+@model_app.command("config-summary")
+def model_config_summary_command(
+    config_path: Annotated[Path, typer.Argument(help="P4 model YAML config path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Inspect a structured-native model config without constructing training state."""
+
+    try:
+        config = AxiomModelConfig.from_yaml(config_path)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    payload = {
+        "model_dim": config.model_dim,
+        "slot_dim": config.slot_dim,
+        "num_layers": config.num_layers,
+        "num_heads": config.num_heads,
+        "parameter_budget_hint": config.parameter_budget_hint,
+        "enabled_modules": config.enabled_module_flags(),
+        "active_ablation_modes": config.ablations.active,
+        "text_projection": config.effective_text_projection(),
+        "geometry_mode": config.effective_geometry_mode(),
+        "router_mode": config.effective_router_mode(),
+    }
+    _print_payload(payload, json_output=json_output, title="Axiom Model Config")
+
+
+@model_app.command("count-params")
+def model_count_params_command(
+    config_path: Annotated[Path, typer.Argument(help="P4 model YAML config path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Construct the P4 model stack and count parameters."""
+
+    try:
+        config = AxiomModelConfig.from_yaml(config_path)
+        model = AxiomStructuredModel(config)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    payload = {
+        **parameter_count(model),
+        "parameter_budget_hint": config.parameter_budget_hint,
+        "p4_model_schema_version": config.p4_model_schema_version,
+    }
+    _print_payload(payload, json_output=json_output, title="Axiom Model Parameters")
+
+
+@model_app.command("smoke-forward")
+def model_smoke_forward_command(
+    bundle_path: Annotated[Path, typer.Argument(help="AXT bundle directory.")],
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="P4 model YAML config path."),
+    ],
+    batch_size: Annotated[int, typer.Option("--batch-size", min=1)] = 2,
+    split_name: Annotated[str | None, typer.Option("--split-name")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Run one no-training forward pass over a P3 AXT bundle."""
+
+    try:
+        dataset = AxtDataset(bundle_path, split_name=split_name)
+        if len(dataset) == 0:
+            raise ValueError("AXT dataset is empty")
+        records = [dataset[index] for index in range(min(batch_size, len(dataset)))]
+        batch = AxtBatchCollator()(records)
+        config = AxiomModelConfig.from_yaml(config_path)
+        model = AxiomStructuredModel(config)
+        output = model(batch)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    payload = {
+        "batch_size": output.latent_state.shape[0],
+        "latent_shape": tuple(output.latent_state.shape),
+        "slot_shape": tuple(output.slot_states.shape),
+        "text_projection_shape": tuple(output.text_projection_logits.shape)
+        if output.text_projection_logits is not None
+        else None,
+        "axc_out_head_shapes": output.raw_axc_out.head_shapes(),
+        "router": output.router_diagnostics,
+        "geometry": output.geometry_diagnostics,
+    }
+    _print_payload(payload, json_output=json_output, title="Axiom Model Smoke Forward")
 
 
 @format_app.command("validate")

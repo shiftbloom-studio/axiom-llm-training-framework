@@ -1,0 +1,43 @@
+model:
+  model_dim: 256
+  slot_dim: 256
+  num_layers: 6
+  num_heads: 8
+  dropout: 0.1
+  activation: gelu
+  parameter_budget_hint: v1_tiny_research
+
+inputs:
+  max_claim_slots: 64
+  max_relation_neighbors: 16
+  max_provenance_sources: 16
+  max_negative_samples: 16
+  max_text_length: 192
+  text_vocab_size: 8192
+  categorical_vocab_size: 4096
+  numeric_feature_count: 32
+  geometry_observable_dim: 8
+
+router:
+  enabled: true
+  mode: head_gate
+
+geometry:
+  enabled: true
+  mode: geometry_features_from_axt
+
+outputs:
+  text_projection: true
+  axc_out: true
+
+ablations:
+  text_only: false
+  structure_only_no_text_projection: false
+  no_provenance: false
+  no_relations: false
+  no_context: false
+  no_provider_context: false
+  no_side_channels: false
+  geometry_off: false
+  router_off: false
+  relation_neighborhood_off: false
