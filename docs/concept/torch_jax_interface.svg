@@ -1,0 +1,73 @@
+<svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">How PyTorch and JAX divide work and connect</title>
+  <desc id="d">PyTorch runs the model and training (arms A to D); JAX runs the geometry/HKR numerics. They meet at the neutral AXT/safetensors boundary in Mode A (offline precompute) or via a direct differentiable bridge in Mode B (in-loop).</desc>
+  <style>
+    :root{
+      --ink:#1f2937;--muted:#6b7280;--pb:#d4d4d8;--line:#9ca3af;
+      --torch:#ea580c;--torchbg:#fff3ea;--jax:#2563eb;--jaxbg:#eaf1fe;--axtbg:#f1f1f4;
+    }
+    @media (prefers-color-scheme:dark){
+      :root{
+        --ink:#e5e7eb;--muted:#9aa3b2;--pb:#3a4150;--line:#7c8696;
+        --torch:#fb923c;--torchbg:#39271a;--jax:#60a5fa;--jaxbg:#18283f;--axtbg:#262b35;
+      }
+    }
+    text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;}
+    .h{font-weight:700;}
+    .bx{font-size:10.5px;fill:var(--ink);}
+    .sub{font-size:10.5px;fill:var(--muted);}
+    .lg{font-size:10.5px;fill:var(--ink);}
+  </style>
+  <defs>
+    <marker id="ahL" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 z" fill="var(--line)"/>
+    </marker>
+    <marker id="ahB" markerWidth="10" markerHeight="10" refX="6.5" refY="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 z" fill="var(--ink)"/>
+    </marker>
+  </defs>
+
+  <text x="380" y="22" text-anchor="middle" class="h" font-size="16" fill="var(--ink)">PyTorch ↔ JAX: two jobs, one pipeline</text>
+  <text x="380" y="41" text-anchor="middle" class="sub">They meet at the AXT / safetensors boundary</text>
+
+  <rect x="18" y="62" width="230" height="244" rx="12" fill="none" stroke="var(--pb)"/>
+  <text x="133" y="86" text-anchor="middle" class="h" font-size="14" fill="var(--torch)">PyTorch</text>
+  <text x="133" y="103" text-anchor="middle" class="sub">model + training · arms A–D</text>
+  <g>
+    <rect x="34" y="118" width="198" height="44" rx="8" fill="var(--torchbg)" stroke="var(--torch)"/>
+    <text x="133" y="144" text-anchor="middle" class="bx">Backbone LM (Hugging Face)</text>
+    <rect x="34" y="174" width="198" height="44" rx="8" fill="var(--torchbg)" stroke="var(--torch)"/>
+    <text x="133" y="200" text-anchor="middle" class="bx">Side-channel adapter / heads</text>
+    <rect x="34" y="230" width="198" height="44" rx="8" fill="var(--torchbg)" stroke="var(--torch)"/>
+    <text x="133" y="256" text-anchor="middle" class="bx">Training loop · optimizer</text>
+  </g>
+
+  <rect x="512" y="62" width="230" height="244" rx="12" fill="none" stroke="var(--pb)"/>
+  <text x="627" y="86" text-anchor="middle" class="h" font-size="14" fill="var(--jax)">JAX</text>
+  <text x="627" y="103" text-anchor="middle" class="sub">geometry math · reference</text>
+  <g>
+    <rect x="528" y="118" width="198" height="44" rx="8" fill="var(--jaxbg)" stroke="var(--jax)"/>
+    <text x="627" y="144" text-anchor="middle" class="bx">Curvature · holonomy · spectrum</text>
+    <rect x="528" y="174" width="198" height="44" rx="8" fill="var(--jaxbg)" stroke="var(--jax)"/>
+    <text x="627" y="200" text-anchor="middle" class="bx">Gauge-invariant observables</text>
+    <rect x="528" y="230" width="198" height="44" rx="8" fill="var(--jaxbg)" stroke="var(--jax)"/>
+    <text x="627" y="256" text-anchor="middle" class="bx">grad · jit · vmap</text>
+  </g>
+
+  <text x="380" y="120" text-anchor="middle" class="sub" font-size="10">Mode A (offline)</text>
+  <rect x="320" y="150" width="120" height="96" rx="14" fill="var(--axtbg)" stroke="var(--pb)"/>
+  <text x="380" y="190" text-anchor="middle" class="h" font-size="16" fill="var(--ink)">AXT</text>
+  <text x="380" y="209" text-anchor="middle" class="sub">.safetensors</text>
+  <text x="380" y="226" text-anchor="middle" class="sub" font-size="9.5">framework-neutral</text>
+
+  <line x1="512" y1="198" x2="444" y2="198" stroke="var(--line)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ahL)"/>
+  <line x1="320" y1="198" x2="250" y2="198" stroke="var(--line)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ahL)"/>
+
+  <text x="380" y="330" text-anchor="middle" class="sub" font-size="10">Mode B (in-loop) — torch-native learned geometry</text>
+  <line x1="170" y1="344" x2="590" y2="344" stroke="var(--ink)" stroke-width="2" marker-start="url(#ahB)" marker-end="url(#ahB)"/>
+
+  <line x1="26" y1="378" x2="56" y2="378" stroke="var(--line)" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <text x="64" y="382" class="lg"><tspan font-weight="700">Mode A · offline:</tspan> JAX writes features → AXT → torch reads them. Ablatable; start here.</text>
+  <line x1="26" y1="402" x2="56" y2="402" stroke="var(--ink)" stroke-width="2"/>
+  <text x="64" y="406" class="lg"><tspan font-weight="700">Mode B · in-loop:</tspan> torch-native learned geometry (PyTorch Geometric) — one graph, gradients flow. JAX bridge only if needed.</text>
+</svg>
