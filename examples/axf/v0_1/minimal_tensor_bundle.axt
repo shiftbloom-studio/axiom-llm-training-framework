@@ -1,0 +1,8 @@
+{
+  "contains_tensors": false,
+  "format": "AXT",
+  "format_version": "0.1.0",
+  "source_axp": "minimal_dataset.axp",
+  "status": "specified_only",
+  "tensor_compilation": "deferred_to_step_3"
+}
