@@ -67,6 +67,8 @@ types are:
 - `shares_evidence_with`
 - `same_claim_family_as`
 - `near_but_distinct_from`
+- `mentions`
+- `related`
 
 ## Geometry Rules
 

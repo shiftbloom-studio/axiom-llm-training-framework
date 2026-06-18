@@ -21,6 +21,9 @@ dependencies = [
   "typer>=0.16.0",
 ]
 
+[project.scripts]
+axiom = "hcaps.cli:app"
+
 [project.optional-dependencies]
 dev = [
   "mypy>=1.16.0",

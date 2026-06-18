@@ -17,10 +17,12 @@ def prefixed_pattern(prefix: str) -> str:
 
 
 type CapsuleId = Annotated[str, Field(pattern=prefixed_pattern("cap_"))]
+type ChunkId = Annotated[str, Field(pattern=prefixed_pattern("chunk_"))]
 type ClaimId = Annotated[str, Field(pattern=prefixed_pattern("claim_"))]
 type CommunityId = Annotated[str, Field(pattern=prefixed_pattern("comm_"))]
 type ContextId = Annotated[str, Field(pattern=prefixed_pattern("ctx_"))]
 type DocumentId = Annotated[str, Field(pattern=prefixed_pattern("doc_"))]
+type FamilyId = Annotated[str, Field(pattern=prefixed_pattern("family_"))]
 type FileId = Annotated[str, Field(pattern=prefixed_pattern("file_"))]
 type ManifestId = Annotated[str, Field(pattern=prefixed_pattern("manifest_"))]
 type RelationId = Annotated[str, Field(pattern=prefixed_pattern("rel_"))]

@@ -1,0 +1,8 @@
+{
+  "title": "Medicine Fixture Note",
+  "authors": ["Axiom Test"],
+  "publication_date": "2023-05-20",
+  "license": "fixture",
+  "domain": ["medicine", "biochemistry"],
+  "temporal_cutoff": "2026-01-01"
+}

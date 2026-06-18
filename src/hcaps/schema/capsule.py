@@ -73,6 +73,8 @@ class RelationType(StrEnum):
     SHARES_EVIDENCE_WITH = "shares_evidence_with"
     SAME_CLAIM_FAMILY_AS = "same_claim_family_as"
     NEAR_BUT_DISTINCT_FROM = "near_but_distinct_from"
+    MENTIONS = "mentions"
+    RELATED = "related"
 
 
 class LicenseStatus(StrEnum):
@@ -305,3 +307,6 @@ class HoloCapsule(BaseModel):
             )
 
         return self
+
+
+ClaimCapsule = HoloCapsule
