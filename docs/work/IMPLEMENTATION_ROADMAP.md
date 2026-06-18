@@ -2,7 +2,7 @@
 
 **Status:** consolidated six-program roadmap
 **Target:** full structured-native LLM training framework v1
-**Current next program:** P4 — Structured-Native Model Stack
+**Current next program:** P5 — Learned Geometry & Claim-Field Graph Dynamics
 **Roadmap style:** all-or-nothing implementation programs; no standalone validation, test, cleanup, or documentation phases
 
 ---
@@ -47,7 +47,7 @@ P1 is reported as implementation-complete and provides:
 - optional/plugin-gated PDF reader path;
 - pre-P1 documentation baseline alignment.
 
-P1 is accepted as the substrate-ingress foundation for P2. P2 formalizes the contracts around P1 outputs. P3 implements the executable AXT compiler/runtime data interface over those contracts and hands AXT to P4/P5/P6.
+P1 is accepted as the substrate-ingress foundation for P2. P2 formalizes the contracts around P1 outputs. P3 implements the executable AXT compiler/runtime data interface over those contracts. P4 implements the first torch-native structured model stack over P3 AXT batches and hands stable geometry/training hooks to P5/P6.
 
 ---
 
@@ -448,7 +448,7 @@ loss = objective(batch.targets, batch.loss_masks, batch.availability_masks)
 
 # P4 — Structured-Native Model Stack
 
-**Status:** next implementation program
+**Status:** ✅ implementation-complete / accepted as P5/P6 handoff
 **Depends on:** P3
 **Coordinates with:** P5
 **Feeds:** P6
@@ -519,7 +519,7 @@ P4 does not implement the full learned geometry math if assigned to P5, does not
 
 # P5 — Learned Geometry & Claim-Field Graph Dynamics
 
-**Status:** not started
+**Status:** next implementation program
 **Depends on:** P3
 **Coordinates with:** P4
 **Feeds:** P6
@@ -709,8 +709,8 @@ P4 and P5 may be developed concurrently after P3, but P6 must not begin until th
 | **P1 Claim-Field Corpus & Provider Ingress** | ✅ complete / accepted | Substrate foundation for P2/P6 |
 | **P2 AXF v1 Contract, AXT & AXC-out Specification** | ✅ spec/interface-complete | Consumed by P3 |
 | **P3 AXT Compiler & Runtime Data Interface** | ✅ implementation-complete | Handoff to P4/P5/P6 |
-| **P4 Structured-Native Model Stack** | ☐ not started | Create implementation plan next |
-| **P5 Learned Geometry & Claim-Field Graph Dynamics** | ☐ not started | Write plan after P4 interface choices are clear |
+| **P4 Structured-Native Model Stack** | ✅ implementation-complete | Handoff to P5/P6 |
+| **P5 Learned Geometry & Claim-Field Graph Dynamics** | ☐ not started | Implement geometry plan next |
 | **P6 Training, Experiments, Verdict & Operator Runtime** | ☐ not started | Write plan after P4/P5 interfaces are clear |
 
 ---
@@ -759,8 +759,8 @@ Do not create standalone “validation steps.” Testing and documentation are p
 The next agent should execute:
 
 ```text
-PLAN 4 — Structured-Native Model Stack
+PLAN 5 — Learned Geometry & Claim-Field Graph Dynamics
 ```
 
-P4 must consume AXT through `hcaps.axt` and the accepted P3 handoff. It must not
-collapse the model boundary back to token-only text.
+P5 must integrate through the P4 geometry hook API and must not rewrite the
+structured-native model stack, add truth labels, or claim a geometry verdict.

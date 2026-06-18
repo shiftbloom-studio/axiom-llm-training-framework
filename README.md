@@ -16,14 +16,15 @@ Current repository status:
 - P1 adds deterministic/local/remote-compatible data-construction providers, replayable provider caches, trace/disagreement manifests, source registries, negative pools, gold-reference candidate hooks, and a tiny synthetic ML/software benchmark corpus fixture.
 - P2 defines AXF v1, AXC v1, AXP v1, AXT v1, AXC-out v1, field/vocabulary registries, masks, negative sampling, provider traces, and interpreter boundaries.
 - P3 implements the AXT compiler, safetensors bundle writer/reader, runtime dataset/batch interface, inspection/validation CLI, provider-context tensors, negative-sample tensors, relation neighborhoods, geometry slots, text projection tensors, targets, and masks.
-- AXC-out is specified as the structured model emission format, but the runtime decoder/interpreter is not complete.
-- The v1 structured-native model, learned geometry module, multi-objective training runtime, and evaluation verdict are not complete.
+- P4 implements the first torch-native structured model stack: typed AXT input adapter, field embeddings, structured encoder, relation/provenance/provider/context conditioning, full-complexity core, epistemic router, structured decoder, AXC-out raw emission boundary, text projection head, geometry hooks, ablations, diagnostics, serialization, and model developer CLI.
+- AXC-out now has a P4 raw emission path and bounded validation/interpreter boundary. Final scoring and training losses are not complete.
+- The learned P5 geometry module, multi-objective training runtime, and evaluation verdict are not complete.
 - No benchmark or model-performance claim is made by this repository.
 
 The next implementation action is:
 
 ```text
-Create Implementation Plan P4: Structured-Native Model Stack.
+Implement P5: Learned Geometry & Claim-Field Graph Dynamics.
 ```
 
 P1-P3 are substrate/interface/compiler work only. They do not train the model or produce an evaluation verdict.
@@ -143,6 +144,15 @@ axiom axt validate artifacts/axt/minimal.axt
 axiom axt tensor artifacts/axt/minimal.axt --group text_projection
 ```
 
+Inspect and smoke-test the P4 structured-native model stack:
+
+```bash
+axiom model config-summary configs/model/structured_native_smoke.yaml
+axiom model count-params configs/model/structured_native_smoke.yaml
+axiom model smoke-forward artifacts/axt/minimal.axt \
+  --config configs/model/structured_native_smoke.yaml
+```
+
 Create falsification-preparation artifacts:
 
 ```bash
@@ -211,6 +221,9 @@ Start with:
 - [docs/work/IMPLEMENTATION_ROADMAP.md](docs/work/IMPLEMENTATION_ROADMAP.md)
 - [docs/work/P2_HANDOFF_TO_P3.md](docs/work/P2_HANDOFF_TO_P3.md)
 - [docs/work/P3_AXT_COMPILER_HANDOFF_TO_P4.md](docs/work/P3_AXT_COMPILER_HANDOFF_TO_P4.md)
+- [docs/MODEL_STACK.md](docs/MODEL_STACK.md)
+- [docs/work/P4_HANDOFF_TO_P5.md](docs/work/P4_HANDOFF_TO_P5.md)
+- [docs/work/P4_HANDOFF_TO_P6.md](docs/work/P4_HANDOFF_TO_P6.md)
 - [docs/concept/AXT_RUNTIME_DATA_INTERFACE.md](docs/concept/AXT_RUNTIME_DATA_INTERFACE.md)
 - [spec/AXF_V1.md](spec/AXF_V1.md)
 - [docs/README.md](docs/README.md)

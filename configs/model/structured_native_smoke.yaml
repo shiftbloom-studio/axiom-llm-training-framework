@@ -1,0 +1,43 @@
+model:
+  model_dim: 64
+  slot_dim: 64
+  num_layers: 2
+  num_heads: 2
+  dropout: 0.0
+  activation: gelu
+  parameter_budget_hint: smoke
+
+inputs:
+  max_claim_slots: 16
+  max_relation_neighbors: 4
+  max_provenance_sources: 4
+  max_negative_samples: 4
+  max_text_length: 64
+  text_vocab_size: 512
+  categorical_vocab_size: 512
+  numeric_feature_count: 16
+  geometry_observable_dim: 8
+
+router:
+  enabled: true
+  mode: scalar_gate
+
+geometry:
+  enabled: false
+  mode: geometry_off
+
+outputs:
+  text_projection: true
+  axc_out: true
+
+ablations:
+  text_only: false
+  structure_only_no_text_projection: false
+  no_provenance: false
+  no_relations: false
+  no_context: false
+  no_provider_context: false
+  no_side_channels: false
+  geometry_off: true
+  router_off: false
+  relation_neighborhood_off: false
