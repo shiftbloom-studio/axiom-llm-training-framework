@@ -175,7 +175,7 @@ Axiom v1 is organized as six implementation programs in the current roadmap. Val
 5. P5 Learned Geometry & Claim-Field Graph Dynamics
 6. P6 Training, Experiment Orchestration & Research Runtime
 
-Legacy Steps 1-4 are foundation/infrastructure. Step 3 is a lightweight training bridge, not the P3 structured-native model program. Step 4 prepares falsification artifacts, not the P9/P10 evaluation verdict. Step 5 is not complete unless real training/evaluation artifacts and a decision report exist.
+Legacy Steps 1-4 are foundation/infrastructure. Step 3 is a lightweight training bridge, not the P3 AXT compiler/runtime data-interface program; P4 is the structured-native model program. Step 4 prepares falsification artifacts, not the P6 evaluation verdict. Step 5 is not complete unless real training/evaluation artifacts and a decision report exist.
 
 ## Fairness
 

@@ -432,7 +432,7 @@ P3 does not build:
 
 ## Handoff to P4/P5/P6
 
-P3 must produce a runtime interface that P4/P5/P6 can consume without parsing AXC manually.
+P3 produces a runtime interface that P4/P5/P6 can consume without parsing AXC manually.
 
 The accepted P3 handoff is [P3_AXT_COMPILER_HANDOFF_TO_P4.md](P3_AXT_COMPILER_HANDOFF_TO_P4.md).
 
@@ -706,8 +706,8 @@ P4 and P5 may be developed concurrently after P3, but P6 must not begin until th
 
 | Program | Status | Current Action |
 |---|---|---|
-| **P1 Claim-Field Corpus & Provider Ingress** | ✅ complete / accepted | Freeze handoff to P2 |
-| **P2 AXF v1 Contract, AXT & AXC-out Specification** | ✅ spec/interface-complete | Handoff to P3 |
+| **P1 Claim-Field Corpus & Provider Ingress** | ✅ complete / accepted | Substrate foundation for P2/P6 |
+| **P2 AXF v1 Contract, AXT & AXC-out Specification** | ✅ spec/interface-complete | Consumed by P3 |
 | **P3 AXT Compiler & Runtime Data Interface** | ✅ implementation-complete | Handoff to P4/P5/P6 |
 | **P4 Structured-Native Model Stack** | ☐ not started | Create implementation plan next |
 | **P5 Learned Geometry & Claim-Field Graph Dynamics** | ☐ not started | Write plan after P4 interface choices are clear |
