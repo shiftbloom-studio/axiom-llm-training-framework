@@ -10,7 +10,7 @@ EXAMPLES = Path("examples/axf/v0_1")
 
 
 def test_metrics_compute_dataset_counts() -> None:
-    capsules, _, _ = load_capsules(EXAMPLES / "minimal_dataset.axc")
+    capsules, _, _ = load_capsules(EXAMPLES / "full_capsules.axc")
     rendered = [render_flat_text(capsule) for capsule in capsules]
 
     metrics = compute_dataset_metrics(capsules, rendered)

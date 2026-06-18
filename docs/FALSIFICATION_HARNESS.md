@@ -95,7 +95,7 @@ Implemented commands:
 
 ```bash
 axiom falsify run examples/axf/v0_1/minimal_dataset.axp --output-dir artifacts --arms all --seed 13 --allow-all-without-split
-axiom falsify audit examples/axf/v0_1/minimal_dataset.axc --json
+axiom falsify audit examples/axf/v0_1/minimal_capsules.axc --json
 axiom falsify report artifacts/falsification/<run_id>/manifest.json --output report.md
 ```
 

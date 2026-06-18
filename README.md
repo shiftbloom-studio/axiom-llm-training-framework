@@ -305,6 +305,34 @@ axiom evaluate configs/evaluation/flat_vs_capsule.yaml
 
 These commands describe the intended interface. The implemented CLI should document which commands are currently available.
 
+Currently implemented substrate commands:
+
+```bash
+axiom build-substrate \
+  --input tests/fixtures/source_docs \
+  --output data/claim-field/capsules.jsonl \
+  --manifest data/claim-field/build_manifest.json \
+  --cutoff-date 2026-01-01
+
+axiom inspect-substrate --input data/claim-field/capsules.jsonl
+```
+
+See `docs/CLAIM_FIELD_SUBSTRATE_BUILDER.md` for the Step 02 builder contract and limitations.
+
+---
+
+## Axiom Exchange Format
+
+Axiom introduces **AXF**, an open exchange format for claim-centric pretraining datasets.
+
+- **AXC** stores line-oriented claim-state capsules.
+- **AXP** stores complete dataset packages with manifests, splits, hashes, and controls.
+- **AXT** will store compiled training tensors in a later training bridge step.
+
+AXF stores stabilization, revision, provenance, uncertainty, relation, and temporal state, not binary truth labels. It is designed for falsification-driven evaluation and temporal leakage control.
+
+Canonical AXF v0.1 conformance fixtures live in `examples/axf/v0_1/` and are validated by the `tests/format` suite.
+
 ---
 
 ## Evaluation philosophy
@@ -341,7 +369,7 @@ Implemented CLI commands:
 
 ```bash
 axiom falsify run examples/axf/v0_1/minimal_dataset.axp --output-dir artifacts --arms all --seed 13 --allow-all-without-split
-axiom falsify audit examples/axf/v0_1/minimal_dataset.axc --json
+axiom falsify audit examples/axf/v0_1/minimal_capsules.axc --json
 axiom falsify report artifacts/falsification/<run_id>/manifest.json --output report.md
 ```
 

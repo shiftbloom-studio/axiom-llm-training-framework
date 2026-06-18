@@ -496,6 +496,10 @@ def _claim_id(capsule: dict[str, Any]) -> str | None:
 def _default_temporal_cutoff(capsules: list[dict[str, Any]]) -> str:
     cutoffs: list[str] = []
     for capsule in capsules:
+        temporal = capsule.get("temporal", {})
+        if isinstance(temporal, dict) and temporal.get("valid_as_of"):
+            cutoffs.append(str(temporal["valid_as_of"]))
+            continue
         context = capsule.get("context", {})
         if isinstance(context, dict):
             temporal = context.get("temporal_cutoff", {})

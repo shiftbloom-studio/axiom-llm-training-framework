@@ -1,0 +1,117 @@
+{
+  "construction": {
+    "builder": "synthetic-axf-conformance-fixture",
+    "builder_version": "0.1.0",
+    "construction_report": "manifests/construction_report.json",
+    "source_manifest": null
+  },
+  "controls": {
+    "context_shuffle": "manifests/confound_controls.json",
+    "degree_preserving_rewires": "manifests/confound_controls.json",
+    "embedding_only_baselines": "manifests/confound_controls.json",
+    "geometry_disabled_ablations": "manifests/confound_controls.json",
+    "popularity_recency_controls": "manifests/confound_controls.json",
+    "provenance_disabled_ablations": "manifests/confound_controls.json",
+    "relation_ablations": "manifests/confound_controls.json",
+    "temporal_holdouts": "splits/temporal_holdout.json"
+  },
+  "counts": {
+    "capsules": 2,
+    "contexts": 1,
+    "relations": 2,
+    "sources": 2
+  },
+  "created_at": "2026-01-02T00:00:00Z",
+  "dataset_name": "Minimal AXF v0.1 Conformance Dataset",
+  "files": [
+    {
+      "byte_size": 6498,
+      "media_type": "application/x-ndjson; profile=AXC",
+      "record_count": 2,
+      "relative_path": "data/capsules.axc",
+      "role": "capsule_stream",
+      "sha256": "664510d01abe5a4b4b102eabde21dfedfba7d798ed33de97b742de91842cfbaa"
+    },
+    {
+      "byte_size": 455,
+      "media_type": "application/x-ndjson; profile=AXSRC",
+      "record_count": 2,
+      "relative_path": "data/sources.axsrc",
+      "role": "source_metadata",
+      "sha256": "9a4be01c9580c13c08cde96b932cde1721a32475f33d30b610f6be5444e96aa7"
+    },
+    {
+      "byte_size": 958,
+      "media_type": "application/x-ndjson; profile=AXR",
+      "record_count": 2,
+      "relative_path": "data/relations.axr",
+      "role": "relation_metadata",
+      "sha256": "ccb7220c2254ea088faa9061bbc7abcede6fa60fa2e9b918e2c8893fa927cbda"
+    },
+    {
+      "byte_size": 109,
+      "media_type": "application/json",
+      "record_count": 1,
+      "relative_path": "splits/train.json",
+      "role": "split",
+      "sha256": "01d39756e47c6adf2ff30eda95613ed9846ac78c5cd3132850910686641bd010"
+    },
+    {
+      "byte_size": 109,
+      "media_type": "application/json",
+      "record_count": 1,
+      "relative_path": "splits/validation.json",
+      "role": "split",
+      "sha256": "d1987e34b8bd1bbe1add0bc38656e9d4638eb14256cf0ab22bc5b0d697a761d6"
+    },
+    {
+      "byte_size": 24,
+      "media_type": "application/json",
+      "record_count": 0,
+      "relative_path": "splits/temporal_holdout.json",
+      "role": "split",
+      "sha256": "746faec14179ad877e85e05594a5fb1991f09c69018b1c431831e45aed8b172d"
+    },
+    {
+      "byte_size": 214,
+      "media_type": "application/json",
+      "record_count": null,
+      "relative_path": "manifests/construction_report.json",
+      "role": "construction_report",
+      "sha256": "fd050d19cb5255b786e1dc3b4f6ee5b79d693f3a02dd440c9233bdae8c6c4f38"
+    },
+    {
+      "byte_size": 108,
+      "media_type": "application/json",
+      "record_count": null,
+      "relative_path": "manifests/leakage_report.json",
+      "role": "leakage_report",
+      "sha256": "0133709159a2dbc70f1268366ea61986ee8a48a4a8b12bc7ebd7474641f75f10"
+    }
+  ],
+  "format": "AXP",
+  "format_version": "0.1.0",
+  "hashes": {
+    "data/capsules.axc": "664510d01abe5a4b4b102eabde21dfedfba7d798ed33de97b742de91842cfbaa",
+    "data/relations.axr": "ccb7220c2254ea088faa9061bbc7abcede6fa60fa2e9b918e2c8893fa927cbda",
+    "data/sources.axsrc": "9a4be01c9580c13c08cde96b932cde1721a32475f33d30b610f6be5444e96aa7",
+    "manifests/construction_report.json": "fd050d19cb5255b786e1dc3b4f6ee5b79d693f3a02dd440c9233bdae8c6c4f38",
+    "manifests/leakage_report.json": "0133709159a2dbc70f1268366ea61986ee8a48a4a8b12bc7ebd7474641f75f10",
+    "splits/temporal_holdout.json": "746faec14179ad877e85e05594a5fb1991f09c69018b1c431831e45aed8b172d",
+    "splits/train.json": "01d39756e47c6adf2ff30eda95613ed9846ac78c5cd3132850910686641bd010",
+    "splits/validation.json": "d1987e34b8bd1bbe1add0bc38656e9d4638eb14256cf0ab22bc5b0d697a761d6"
+  },
+  "license": "CC0-1.0-fixture",
+  "package_id": "axp:minimal-conformance-dataset:0.1.0",
+  "schema": {
+    "axc": "0.1.0",
+    "axf": "0.1.0",
+    "axp": "0.1.0",
+    "axt": "0.1.0"
+  },
+  "temporal_policy": {
+    "cutoff_policy": "predictor_side_sources_must_not_exceed_valid_as_of",
+    "leakage_report": "manifests/leakage_report.json",
+    "temporal_holdout": "splits/temporal_holdout.json"
+  }
+}

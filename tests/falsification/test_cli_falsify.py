@@ -15,7 +15,7 @@ def test_cli_audit_works_on_minimal_axc() -> None:
 
     result = runner.invoke(
         app,
-        ["falsify", "audit", str(EXAMPLES / "minimal_dataset.axc"), "--json"],
+        ["falsify", "audit", str(EXAMPLES / "minimal_capsules.axc"), "--json"],
     )
 
     assert result.exit_code == 0, result.output

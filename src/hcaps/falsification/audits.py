@@ -162,10 +162,23 @@ def audit_required_fields(
 ) -> list[AuditFinding]:
     """Flag missing core AXC fields."""
 
-    required = ("capsule_id", "claim", "surface_forms", "epistemic_state", "provenance", "context")
+    required = ("claim", "surface_forms", "epistemic_state", "provenance", "context")
     findings: list[AuditFinding] = []
     for index, capsule in enumerate(capsules):
         capsule_id = _capsule_id(capsule, index)
+        ids = capsule.get("ids", {})
+        if "capsule_id" not in capsule and not (
+            isinstance(ids, dict) and ids.get("capsule_id")
+        ):
+            findings.append(
+                AuditFinding(
+                    audit="required_fields",
+                    severity="error",
+                    capsule_id=capsule_id,
+                    path="capsule_id",
+                    message="Capsule is missing required capsule ID.",
+                )
+            )
         for field in required:
             if field not in capsule:
                 findings.append(
@@ -203,15 +216,21 @@ def audit_provenance_integrity(
             )
             continue
         for source_index, source in enumerate(provenance):
-            for key in ("source_id", "source_title", "source_timestamp"):
-                if key not in source and "source_count_proxy_index" not in source:
+            expected_groups = {
+                "source_id": ("source_id",),
+                "source_title": ("source_title", "title"),
+                "source_timestamp": ("source_timestamp", "source_date", "published_at"),
+            }
+            for label, keys in expected_groups.items():
+                has_key = any(key in source for key in keys)
+                if not has_key and "source_count_proxy_index" not in source:
                     findings.append(
                         AuditFinding(
                             audit="provenance_integrity",
                             severity="warning",
                             capsule_id=capsule_id,
-                            path=f"provenance[{source_index}].{key}",
-                            message=f"Provenance record is missing '{key}'.",
+                            path=f"provenance[{source_index}].{label}",
+                            message=f"Provenance record is missing '{label}'.",
                         )
                     )
 
@@ -409,24 +428,33 @@ def _source_timestamp_values(capsule: dict[str, Any]) -> list[tuple[str, Any]]:
     for index, source in enumerate(_provenance_list(capsule)):
         if source.get("target_only"):
             continue
-        for key in ("source_timestamp", "published_at", "timestamp"):
+        for key in ("source_timestamp", "source_date", "published_at", "timestamp"):
             if key in source:
                 values.append((f"provenance[{index}].{key}", source[key]))
 
     surface_forms = capsule.get("surface_forms", {})
     if isinstance(surface_forms, dict):
-        spans = surface_forms.get("original_spans", [])
+        spans = surface_forms.get("original_spans") or surface_forms.get("source_spans", [])
         if isinstance(spans, list):
             for index, span in enumerate(spans):
+                timestamp = None
+                timestamp_key = None
+                if isinstance(span, dict):
+                    for key in ("source_timestamp", "source_date", "published_at", "timestamp"):
+                        if span.get(key):
+                            timestamp = span[key]
+                            timestamp_key = key
+                            break
                 if (
                     isinstance(span, dict)
                     and not span.get("target_only")
-                    and span.get("source_timestamp")
+                    and timestamp is not None
+                    and timestamp_key is not None
                 ):
                     values.append(
                         (
-                            f"surface_forms.original_spans[{index}].source_timestamp",
-                            span["source_timestamp"],
+                            f"surface_forms.source_spans[{index}].{timestamp_key}",
+                            timestamp,
                         )
                     )
     return values
