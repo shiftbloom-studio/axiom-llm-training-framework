@@ -17,6 +17,14 @@ from hcaps.substrate.canonicalize import normalize_text, stable_id
 from hcaps.substrate.manifest import BuildWarning, SubstrateBuildConfig
 from hcaps.utils.hashing import file_sha256
 
+_PdfReader: Any
+try:
+    from pypdf import PdfReader as _ImportedPdfReader
+except ImportError:  # pragma: no cover - optional dependency.
+    _PdfReader = None
+else:
+    _PdfReader = _ImportedPdfReader
+
 READER_VERSION = "0.2.0"
 SUPPORTED_TEXT_SUFFIXES = {".txt", ".md", ".markdown"}
 SUPPORTED_SUFFIXES = SUPPORTED_TEXT_SUFFIXES | {".jsonl", ".pdf"}
@@ -52,17 +60,6 @@ def read_source_documents(
                 )
             )
             continue
-        if path.suffix.casefold() == ".pdf":
-            skipped += 1
-            warnings.append(
-                BuildWarning(
-                    code="pdf_not_supported",
-                    message="PDF reading is not enabled in Step 02; convert to text or markdown",
-                    path=str(path),
-                )
-            )
-            continue
-
         try:
             sidecar = load_sidecar_metadata(path)
         except (ValidationError, ValueError) as exc:
@@ -75,6 +72,15 @@ def read_source_documents(
             read_documents, read_warnings = _read_jsonl_records(path, sidecar)
             documents.extend(read_documents)
             warnings.extend(read_warnings)
+        elif path.suffix.casefold() == ".pdf":
+            read_documents, read_warnings, read_skipped = _read_pdf_documents(
+                path,
+                sidecar,
+                config,
+            )
+            documents.extend(read_documents)
+            warnings.extend(read_warnings)
+            skipped += read_skipped
         else:
             documents.append(_read_plain_text_document(path, sidecar))
 
@@ -109,6 +115,7 @@ def _read_plain_text_document(path: Path, metadata: SidecarMetadata | None) -> S
         metadata=metadata,
         title=metadata.title if metadata and metadata.title else path.stem.replace("_", " "),
         reader_name=f"plain-text:{path.suffix.casefold().lstrip('.')}",
+        page_number=None,
     )
 
 
@@ -154,9 +161,97 @@ def _read_jsonl_records(
                     payload.get("title") or record_metadata.title or f"{path.stem} {line_number}"
                 ),
                 reader_name="jsonl:text-record",
+                page_number=None,
             )
         )
     return documents, warnings
+
+
+def _read_pdf_documents(
+    path: Path,
+    metadata: SidecarMetadata | None,
+    config: SubstrateBuildConfig,
+) -> tuple[list[SourceDocument], list[BuildWarning], int]:
+    if not config.pdf_reader_enabled:
+        message = (
+            "PDF reader interface is disabled; enable pdf_reader_enabled with an optional "
+            "pypdf installation or provide text/markdown sources"
+        )
+        if config.pdf_reader_required:
+            raise ReaderError(message)
+        return (
+            [],
+            [BuildWarning(code="pdf_reader_disabled", message=message, path=str(path))],
+            1,
+        )
+    if _PdfReader is None:
+        message = "PDF reader requires optional dependency pypdf"
+        if config.pdf_reader_required:
+            raise ReaderError(message)
+        return (
+            [],
+            [BuildWarning(code="pdf_reader_unavailable", message=message, path=str(path))],
+            1,
+        )
+    try:
+        reader = _PdfReader(str(path))
+    except Exception as exc:
+        message = f"PDF parser failed: {exc}"
+        if config.pdf_reader_required:
+            raise ReaderError(message) from exc
+        return (
+            [],
+            [BuildWarning(code="pdf_reader_failed", message=message, path=str(path))],
+            1,
+        )
+
+    raw_bytes = path.read_bytes()
+    documents: list[SourceDocument] = []
+    warnings: list[BuildWarning] = []
+    for page_index, page in enumerate(reader.pages, start=1):
+        try:
+            text = normalize_text(page.extract_text() or "")
+        except Exception as exc:
+            warnings.append(
+                BuildWarning(
+                    code="pdf_page_extract_failed",
+                    message=f"PDF page {page_index} extraction failed: {exc}",
+                    path=str(path),
+                )
+            )
+            continue
+        if not text:
+            warnings.append(
+                BuildWarning(
+                    code="pdf_page_empty",
+                    message=f"PDF page {page_index} produced no extractable text",
+                    path=str(path),
+                )
+            )
+            continue
+        title = metadata.title if metadata and metadata.title else path.stem.replace("_", " ")
+        documents.append(
+            _build_source_document(
+                path=path,
+                record_key=f"{path}#page={page_index}",
+                raw_bytes=raw_bytes + f"#page={page_index}".encode(),
+                text=text,
+                metadata=metadata,
+                title=f"{title} p. {page_index}",
+                reader_name="pdf:pypdf",
+                page_number=page_index,
+            )
+        )
+    if not documents:
+        warnings.append(
+            BuildWarning(
+                code="pdf_no_extractable_text",
+                message="PDF produced no extractable text pages",
+                path=str(path),
+            )
+        )
+        return [], warnings, 1
+    return documents, warnings, 0
 
 
 def _metadata_from_record(
@@ -179,6 +274,7 @@ def _build_source_document(
     metadata: SidecarMetadata | None,
     title: str,
     reader_name: str,
+    page_number: int | None,
 ) -> SourceDocument:
     raw_hash = hashlib.sha256(raw_bytes).hexdigest()
     normalized_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -203,6 +299,7 @@ def _build_source_document(
         source_url=metadata.source_url if metadata else None,
         domains=metadata.domain if metadata else [],
         temporal_cutoff_at=temporal_cutoff,
+        page_number=page_number,
         reader_name=reader_name,
         reader_version=READER_VERSION,
     )

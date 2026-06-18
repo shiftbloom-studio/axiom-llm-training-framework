@@ -32,24 +32,46 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
 - **Geometry/HKR.** Model context-transport via a learnable connection → holonomy /
   curvature / spectrum, reported only as **gauge-invariant observables**. The learned
   geometry *discovers* what is invariant vs context-dependent; nothing is pre-certified.
+- **Full complexity throughout (no fade).** A fact's complexity — its context, its position
+  in the field, its contextual influences — must persist from input *through* compute *to*
+  output, not fade in at the start and fade out into plain text at the end. Biomimetic tell:
+  high-energy systems *spool up* and *spool down* (motor warm-up, enzyme activation energy,
+  control-loop settling); nothing jumps 0→100. Raising both the input *and* the output floor
+  lifts the whole knowledge curve, instead of being capped by plain-text-in / plain-text-out.
 
 ## 3. Architectural concept (current)
 
 - **Pipeline:** source → substrate builder (claim-field capsules) → tensorizer (AXT) →
   model + conditioning (arms A–D + auxiliary heads) → learned geometry → training
   (multi-objective) → evaluation + falsification → decision.
+- **Structured I/O (spool-up → core → spool-down).** The model ingests structured
+  representations (claim-graph, epistemic vectors, neighborhoods, geometry — *encode-in*),
+  computes at full complexity (learned geometry + epistemic routing — *core*), and emits a
+  **structured, interpretable Axiom output** (relations, provenance, stability,
+  future-summary, gauge-invariant geometry observables — *decode-out*); plain text is one
+  optional projection, not the boundary. Two compatible ramps: per-forward-pass
+  (encode→core→decode) and a training-time complexity curriculum. **Output target =
+  structured-native** (ADR-0011): the model emits a structured Axiom output ("AXC-out") via a
+  decoder/interpreter; **text is a secondary projection** that keeps the flat/structured-text
+  baselines comparable.
 - **Frameworks:** PyTorch primary (model/training/arms); in-loop **learned geometry is
   torch-native** (PyTorch Geometric); **JAX = reference/precompute only**; a JAX↔torch
   bridge only if profiling forces it. ([DECISIONS.md](DECISIONS.md) ADR-0007/0009;
-  diagram [torch_jax_interface.svg](torch_jax_interface.svg))
+  diagram [torch_jax_interface.svg](torch_jax_interface.svg)) The backbone is a **custom
+  torch structured-native model** (encoder + core + structured decoder + text-projection
+  head), not a stock HF causal LM; HF is optional, only for the text projection/baselines
+  (ADR-0011).
 - **Geometry mode:** fixed/precomputed (Mode A) vs learned-while-training (Mode B). Chosen:
   **torch-native learned (Mode B)** as the thesis-carrying form; geometry is in-plan,
   concurrent, ablatable, gauge-invariant. (ADR-0005/0008/0009)
-- **Extraction:** a **universal extraction interface** with pluggable, swappable backends
-  emitting credible-enough (not truth-certified) claim-states with provenance + confidence;
-  cross-extractor variation recorded as context. Default backend pending ratification
-  (LLM-assisted, cached+hashed); reproducible local backend first-class; small
-  human-verified gold set for evaluation. (see [../work/PLAN_1_substrate.md](../work/PLAN_1_substrate.md))
+- **Extraction:** a **universal data-ingress interface** (OpenAI-API-compatible provider,
+  local *and* remote first-class, + a generic Python provider) feeding provider-agnostic
+  extraction logic, with a **local-first cascade** (bulk local → gated remote escalation for
+  hard/high-impact items → merge; config-driven, ablatable). Full extraction and caching +
+  hash + replay retained. LLMs are used for **data construction only**, never in the
+  training/eval path; the substrate is pinned + hashed and feeds all arms equally, so it
+  doesn't bias the comparison. Small human-verified gold set for evaluation. (ADR-0010; see
+  [../work/PLAN_1_substrate.md](../work/PLAN_1_substrate.md))
 - **First corpus domain:** ML / software benchmark claims.
 
 ## 4. Owner decisions (meaning preserved, in order)
@@ -67,10 +89,20 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
 6. **Six implementation plans** portray the full framework; **requirements are CLOSED**
    after the four first-class must-haves.
 7. First corpus domain = **ML / software benchmark claims**.
-8. Extraction is a **framework interface + pluggable backends** (claim-states, not truth);
-   the default backend decision is pending.
+8. Extraction = a universal **OpenAI-API-compatible provider interface** (local + remote
+   first-class) feeding provider-agnostic logic, **with a local-first cascade** (bulk local →
+   gated remote escalation → merge; ablatable). The old "no external LLM" rule is dropped →
+   **LLMs for data construction only, never in training/eval**. (ADR-0010)
 9. **Documentation structure:** `project-knowledge/`, `work/`, `concept/` folders + a
    navigation file in `docs/`; only `README.md` lives outside `docs/`.
+10. **No scope/complexity reduction** when refining a decision: keep functionality and
+    completeness at least at the planned level. If forced to choose, lean to *slightly more*
+    complex, not less. (E.g. ADR-0010 must not shrink Plan 1 — only the automatic cascade is
+    deferred.)
+11. **Full complexity from input to output (no fade).** Structured encode-in →
+    full-complexity core → structured, interpretable Axiom output; plain text is only a
+    projection. Mirrors a biomimetic spool-up / spool-down; raising *both* endpoints is the
+    lever for the higher knowledge ceiling. (Resolved: **structured-native** I/O — ADR-0011.)
 
 ## 5. Guardrails (hold unless the owner overrules)
 
@@ -81,6 +113,9 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
   only gauge-invariant observables; negative results preserved; geometry always ablatable
   with a parameter-matched non-geometric baseline and a context-shuffle control.
 - **No truth labels, ever.**
+- **Don't collapse the boundaries to plain text.** Keep structured input *and* structured
+  output (text is one projection); structured channels and output heads stay ablatable so
+  the effect remains testable.
 - **Soft-guidelines policy:** ask the owner before crossing any stated guideline or ADR.
 
 ---

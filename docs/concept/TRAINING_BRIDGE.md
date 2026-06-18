@@ -1,53 +1,69 @@
 # Training Bridge
 
-The training bridge is the component that turns claim-centric AXF
-capsules into model-ready training examples. It sits between the
-structured data contract defined in earlier milestones and the
-machine learning models that consume token sequences and optional side
-channels.
+Status: Current | Updated: 2026-06-18 | See: [DATA_CONTRACT.md](DATA_CONTRACT.md), [../../spec/AXT_TENSOR_BUNDLE.md](../../spec/AXT_TENSOR_BUNDLE.md)
 
-## Modes
+The current training bridge is a lightweight infrastructure layer. It renders claim-state capsules into text comparison arms, tokenizes them with a baseline tokenizer, builds side-channel vectors, and records manifests.
 
-The bridge supports three text rendering modes:
+It is not the full v1 AXT compiler, model runtime, or training loop.
 
-* **flat_text** – extracts only the canonical claim or best surface
-  representation. Use this as a baseline comparable to plain text
-  corpora.
-* **structured_text** – includes high-level labels such as the claim,
-  context and sources. This mode exposes epistemic structure without
-  overwhelming detail.
-* **capsule** – outputs a verbose, labelled representation of the
-  entire capsule. It is useful for models that can leverage rich
-  structural cues.
+## Current Modes
+
+Current implemented renderers:
+
+- `flat_text` - claim surface only, for text baseline comparison;
+- `structured_text` - labeled text view with claim, context, and sources;
+- `capsule_text` - richer predictor-visible capsule rendering.
+
+These are text-rendered arms. They are useful for baselines and text projection. They are not the structured-native Axiom substrate.
+
+## Future AXT Compiler
+
+P3 must implement the production AXT compiler. AXT must include:
+
+- input tensors;
+- target/output tensors;
+- loss masks;
+- target availability masks;
+- temporal masks;
+- relation/neighborhood tensors;
+- provenance tensors;
+- context tensors;
+- geometry-observable tensors where enabled;
+- deterministic negative-sampling metadata;
+- split metadata and manifest hashes.
+
+The compiler must prevent future-facing targets from entering predictor-visible tensors.
 
 ## Tokenization
 
-Tokenization is performed by objects implementing the
-`TokenizerProtocol`. A simple baseline tokenizer splits on whitespace
-and lowercases tokens. Users may substitute a BPE or WordPiece
-tokenizer by implementing the protocol and ensuring that the same
-special token IDs are exposed.
+Tokenization supports text-rendered arms and text projection. It should not become the native representation by accident.
+
+The current `WhitespaceTokenizer` is a baseline/fallback. Future text arms may use a real subword tokenizer, but token parity applies only inside text-rendered arms and text-projection comparisons.
 
 ## Side Channels
 
-Side-channel features are numeric values derived from the capsule’s
-epistemic state, relation counts, provenance counts and geometry
-flags. They are provided separately from the tokenized text. Models
-may optionally consume these features to improve calibration or
-reasoning without encoding epistemic information in the language
-stream itself.
+Current side-channel features are numeric projections of epistemic state, relation counts, provenance counts, and geometry flags. They are useful infrastructure but do not replace structured-native tensors.
 
-## Data Loader and Collator
+Future AXT should make side channels ablatable and preserve the relation/hypergraph path directly.
 
-The `AxcTrainingDataset` reads AXC capsules (or canonical capsule
-streams inside AXP packages) into memory and yields tokenized
-examples. The `TrainingCollator` pads variable-length sequences to
-uniform length within a batch, produces attention masks and label
-masks and stacks side-channel vectors.
+## Manifests
 
-## Manifest
+Every bridge or compiler artifact should record:
 
-A manifest records the configuration used to produce a dataset: input
-paths, tokenizer metadata, rendering mode, sequence length limits,
-whether side channels were included and the number of records. Use
-manifests to track experiments and ensure reproducibility.
+- input paths and hashes;
+- tokenizer identity and hash where used;
+- rendering mode or structured arm;
+- sequence length or tensor shape limits;
+- side-channel inclusion;
+- split identity;
+- deterministic seed;
+- output hashes.
+
+## Guardrails
+
+- no truth labels;
+- no temporal leakage;
+- missing targets require masks;
+- deterministic negative samples where targets need negatives;
+- no raw gauge matrices as canonical outputs;
+- no hidden provider or interpreter repair.

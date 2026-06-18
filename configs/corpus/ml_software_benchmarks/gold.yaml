@@ -1,0 +1,14 @@
+gold_schema_version: "0.1.0"
+export_name: ml_software_candidates.jsonl
+review_fields:
+  - claim_boundary_review
+  - relation_review
+  - provenance_span_review
+  - temporal_cutoff_review
+  - epistemic_proxy_review
+  - hard_negative_relation_examples
+  - near_but_distinct_claim_examples
+reference_field_names:
+  - gold_reference
+  - human_verified_reference
+  - evaluation_reference

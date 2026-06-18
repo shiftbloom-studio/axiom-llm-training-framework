@@ -1,0 +1,18 @@
+providers:
+  cache:
+    root_path: ../../../.cache/axiom/providers
+    mode: live
+  primary:
+    provider_id: deterministic_bootstrap
+    type: deterministic
+    provider_family: deterministic
+    provider_mode: deterministic
+    model: deterministic-bootstrap-v0.2
+  cascade:
+    enabled: false
+    gate:
+      min_confidence: 0.72
+      high_impact_claim_types:
+        - causal_claim
+        - measurement_claim
+      max_escalation_fraction: 0.2

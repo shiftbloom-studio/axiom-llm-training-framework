@@ -7,12 +7,15 @@ venv/
 .coverage
 coverage.xml
 htmlcov/
+.cache/
 dist/
 build/
 *.egg-info/
 __pycache__/
 *.py[cod]
 uv.lock.tmp
-/data/
+/data/*
+!/data/gold/
+!/data/gold/README.md
 /artifacts/
 /runs/

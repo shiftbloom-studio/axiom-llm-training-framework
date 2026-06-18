@@ -1,4 +1,4 @@
-"""Reusable validation helpers for the HoloCapsule schema."""
+"""Reusable validation helpers for Axiom claim-state schemas."""
 
 from __future__ import annotations
 

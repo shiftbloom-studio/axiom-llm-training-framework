@@ -167,9 +167,7 @@ def audit_required_fields(
     for index, capsule in enumerate(capsules):
         capsule_id = _capsule_id(capsule, index)
         ids = capsule.get("ids", {})
-        if "capsule_id" not in capsule and not (
-            isinstance(ids, dict) and ids.get("capsule_id")
-        ):
+        if "capsule_id" not in capsule and not (isinstance(ids, dict) and ids.get("capsule_id")):
             findings.append(
                 AuditFinding(
                     audit="required_fields",

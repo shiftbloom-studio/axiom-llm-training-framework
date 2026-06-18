@@ -18,7 +18,7 @@ class CapsuleStoreError(Exception):
 
 
 class InvalidCapsuleRecordError(CapsuleStoreError, ValueError):
-    """Raised when a persisted record cannot validate as a HoloCapsule."""
+    """Raised when a persisted record cannot validate as an Axiom claim-state capsule."""
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,7 @@ class ValidationReport:
 
 
 class CapsuleStore(Protocol):
-    """Protocol implemented by concrete HoloCapsule storage backends."""
+    """Protocol implemented by concrete Axiom claim-state storage backends."""
 
     def write_capsules(
         self,

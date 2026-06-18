@@ -1,48 +1,46 @@
-# Axiom — Documentation (start here)
+# Axiom Documentation
 
-Navigation for the docs. Only `README.md` lives outside this folder; everything else is here.
+This directory contains the active documentation set for Axiom.
 
-- **Current status & next step →** [work/IMPLEMENTATION_ROADMAP.md](work/IMPLEMENTATION_ROADMAP.md)
-- **What we're building & why →** [concept/CONCEPT.md](concept/CONCEPT.md)
+Axiom is a structured-native LLM training framework. The canonical concept, decisions, roadmap, and specs are the authority for future work. Historical source material is preserved for provenance, but it is not allowed to override the active Axiom direction.
 
-## Folders
+## Start Here
 
-| Folder | What's in it |
+1. [concept/CONCEPT.md](concept/CONCEPT.md) - conceptual authority.
+2. [concept/DECISIONS.md](concept/DECISIONS.md) - accepted ADRs.
+3. [work/IMPLEMENTATION_ROADMAP.md](work/IMPLEMENTATION_ROADMAP.md) - current P1-P10 v1 roadmap.
+4. [../spec/AXF.md](../spec/AXF.md) - format-family entry point.
+5. [concept/CORPUS_PROVIDER_INGRESS.md](concept/CORPUS_PROVIDER_INGRESS.md) - P1 corpus/provider ingress.
+6. [work/PRE_P1_DOCUMENTATION_AUDIT.md](work/PRE_P1_DOCUMENTATION_AUDIT.md) - record of the pre-P1 alignment pass.
+
+## Active Folders
+
+| Folder | Role |
 |---|---|
-| [`concept/`](concept/) | The current architectural + philosophical-physical concept, the owner's decisions, and the guardrails. **Authoritative for intent.** |
-| [`work/`](work/) | Implementation plans (current + older), the timeline, and our current position on it (which plan is next). **Live status.** |
-| [`project-knowledge/`](project-knowledge/) | Original HKR theory and the initially-provided research material that has not been overruled. **Historical** — intent, not current state. |
-| [`../spec/`](../spec/) | Format specifications: AXC / AXF / AXP / AXT. |
+| [concept/](concept/) | Current concept, ADRs, protocol docs, architecture notes, and guardrails. |
+| [work/](work/) | Current roadmap and current work/audit records. |
+| [../spec/](../spec/) | AXF, AXC, AXP, AXT, and AXC-out specifications. |
+| [../examples/](../examples/) | Small AXF/AXC/AXP conformance fixtures. |
+| [../configs/](../configs/) | Smoke configs, corpus configs, and disabled future-runtime config stubs. |
 
-## Key documents
+## Historical Material
 
-| Document | One-line |
+| Folder | Role |
 |---|---|
-| [concept/CONCEPT.md](concept/CONCEPT.md) | Current concept + owner decisions + guardrails (meaning preserved). Start here for direction. |
-| [concept/DECISIONS.md](concept/DECISIONS.md) | Formal decision record (ADRs 0001–0009). |
-| [concept/ARCHITECTURE.md](concept/ARCHITECTURE.md) | System architecture (predates Steps 2–4; see CONCEPT + ROADMAP for current). |
-| [concept/DATA_CONTRACT.md](concept/DATA_CONTRACT.md) | The capsule data contract. |
-| [work/IMPLEMENTATION_ROADMAP.md](work/IMPLEMENTATION_ROADMAP.md) | The 6-plan roadmap, build order, and current position. |
-| [work/build_map.svg](work/build_map.svg) | Visual of the 6 plans and their order. |
-| [work/PLAN_1_substrate.md](work/PLAN_1_substrate.md) | First implementation plan + agent prompt. |
-| [work/PROGRESS_REVIEW.md](work/PROGRESS_REVIEW.md) | Point-in-time code audit (2026-06-18): Steps 1–4 done, Step 5 not yet. |
+| [project-knowledge/](project-knowledge/) | Historical source material and research notes. These files may use old HoloCapsule terminology. |
+| [archive/](archive/) | Deprecated point-in-time plans, status reports, and diagrams superseded by the current roadmap. |
 
-## Reading order (newcomer or agent)
+Historical files may contradict current terminology. When they do, follow:
 
-1. This file. 2. [concept/CONCEPT.md](concept/CONCEPT.md). 3. [work/IMPLEMENTATION_ROADMAP.md](work/IMPLEMENTATION_ROADMAP.md).
-4. [concept/DECISIONS.md](concept/DECISIONS.md). 5. [concept/DATA_CONTRACT.md](concept/DATA_CONTRACT.md) + [../spec/AXF.md](../spec/AXF.md).
-6. [work/PROGRESS_REVIEW.md](work/PROGRESS_REVIEW.md). 7. [project-knowledge/](project-knowledge/) (origins).
+1. [concept/CONCEPT.md](concept/CONCEPT.md)
+2. [concept/DECISIONS.md](concept/DECISIONS.md)
+3. [work/IMPLEMENTATION_ROADMAP.md](work/IMPLEMENTATION_ROADMAP.md)
+4. [../spec/](../spec/)
 
-## Status convention
+## Current Next Action
 
-Each canonical doc should carry a one-line header: `Status: Current | Updated: YYYY-MM-DD | See: …`. (Rollout pending.)
+```text
+Create Implementation Plan P2: AXF v1 Contract, AXT & AXC-out Specification.
+```
 
-## Local cleanup (the sandbox can rename but not delete)
-
-These need a local `rm` and then a commit:
-
-- ~18 stray duplicate doc/`.pdf` files at the **repo root** (canonical copies now live under `docs/`). Keep only root `README.md`.
-- Empty husk dirs left by the reorg: `docs/diagrams/`, `docs/research/`, `docs/_probe/`.
-- Throwaway test artifacts: `.uvtest/`, `.reorg_probe2.txt`.
-
-Then commit the new structure (`docs/README.md`, `docs/concept/`, `docs/work/`, renamed `docs/project-knowledge/`).
+Do not start new work from archived Plan 1/Plan 2 documents. They are historical drafts from the old roadmap shape.

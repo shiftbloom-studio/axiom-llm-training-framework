@@ -43,6 +43,8 @@ class SubstrateBuildConfig(BaseModel):
     cutoff_date: date | None = None
     strict_temporal_cutoff: bool = True
     invalid_sidecar_policy: Literal["warn", "error"] = "warn"
+    pdf_reader_enabled: bool = False
+    pdf_reader_required: bool = False
 
     @field_serializer(
         "input_path", "output_path", "manifest_path", "axc_output_path", "axp_package_path"

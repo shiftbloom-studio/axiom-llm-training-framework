@@ -210,6 +210,7 @@ def _make_chunk(
         start_char=start_char,
         end_char=end_char,
         section_path=list(section_path),
+        page_number=document.page_number,
         source_timestamp=document.published_at,
     )
 

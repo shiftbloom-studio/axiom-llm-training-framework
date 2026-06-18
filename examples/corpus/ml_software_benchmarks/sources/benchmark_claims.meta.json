@@ -1,0 +1,9 @@
+{
+  "title": "Synthetic ML/Software Benchmark Claims",
+  "authors": ["Axiom contributors"],
+  "publication_date": "2025-06-01",
+  "license": "Apache-2.0",
+  "source_url": "https://example.invalid/axiom/synthetic-ml-software-benchmarks",
+  "domain": ["machine_learning", "software_engineering", "benchmarking"],
+  "temporal_cutoff": "2026-01-01"
+}

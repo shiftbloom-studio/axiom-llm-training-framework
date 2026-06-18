@@ -1,3 +1,7 @@
+# Historical document. Superseded by CONCEPT.md, DECISIONS.md, and IMPLEMENTATION_ROADMAP.md.
+
+This point-in-time review predates the pre-P1 structured-native documentation alignment. It is retained as historical audit context only.
+
 # Axiom / HoloCapsule — Status, Progress & Code Review
 
 Date: 2026-06-18 · Reviewer: automated code review · Commit: `b6f71e9` (branch `main`)

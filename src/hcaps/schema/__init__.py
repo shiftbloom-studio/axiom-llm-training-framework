@@ -1,4 +1,7 @@
-"""Canonical HoloCapsule schema models."""
+"""Canonical Axiom claim-state schema models.
+
+`HoloCapsule` remains as a legacy internal model alias for compatibility.
+"""
 
 from hcaps.schema.capsule import (
     Claim,

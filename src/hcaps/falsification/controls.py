@@ -26,7 +26,7 @@ def remove_relations(capsule: dict[str, Any]) -> dict[str, Any]:
 def remove_context(capsule: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of a capsule with context removed.
 
-    Removing context makes canonical HoloCapsule validation fail for the
+    Removing context makes canonical Axiom claim-state validation fail for the
     current schema, so runners must mark this artifact as derived and
     noncanonical.
     """

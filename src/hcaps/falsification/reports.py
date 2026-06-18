@@ -100,7 +100,8 @@ def _render_report(manifest: FalsificationRunManifest) -> str:
             "- Treat popularity and frequency controls as confound checks, not epistemic labels.",
             "- Treat any temporal leakage finding as blocking until the source "
             "artifact is repaired.",
-            "- Carry these manifests into Step 5 before choosing training settings.",
+            "- Carry these manifests into future P8/P9 planning before choosing "
+            "training settings; they are preparation artifacts, not a verdict.",
             "",
         ]
     )

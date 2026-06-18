@@ -1,6 +1,6 @@
 """Parquet storage backend.
 
-This backend is intentionally conservative for Step 1. It writes a small set of
+This backend is intentionally conservative. It writes a small set of
 flat inspection columns plus the canonical nested capsule payload as
 ``record_json``. That makes the file usable with Arrow/Polars while preserving the
 full contract. Native nested Parquet layouts are deferred until downstream
@@ -35,7 +35,7 @@ class ParquetCapsuleStore:
 
     limitations = (
         "Nested capsule fields are stored as canonical JSON in record_json. "
-        "Only simple inspection columns are flattened in Step 1."
+        "Only simple inspection columns are flattened in the current foundation layer."
     )
 
     def write_capsules(
@@ -90,7 +90,7 @@ class ParquetCapsuleStore:
             try:
                 yield HoloCapsule.model_validate_json(record_json)
             except (ValidationError, ValueError) as exc:
-                msg = f"{path}:{row_number}: invalid HoloCapsule parquet row: {exc}"
+                msg = f"{path}:{row_number}: invalid Axiom claim-state parquet row: {exc}"
                 raise InvalidCapsuleRecordError(msg) from exc
 
     def validate(self, path: PathLike) -> ValidationReport:

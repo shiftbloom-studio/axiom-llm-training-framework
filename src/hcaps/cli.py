@@ -12,6 +12,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from hcaps.corpus.builder import build_corpus
+from hcaps.corpus.gold import export_gold_candidates
+from hcaps.corpus.manifest import load_corpus_build_config
 from hcaps.falsification.audits import audit_input_capsules, findings_to_dicts, summarize_findings
 from hcaps.falsification.reports import write_falsification_report
 from hcaps.falsification.runner import (
@@ -21,6 +24,8 @@ from hcaps.falsification.runner import (
 )
 from hcaps.format.package import create_package_skeleton, inspect_package, validate_package
 from hcaps.format.streams import validate_axc_stream
+from hcaps.providers.cache import ProviderCache
+from hcaps.providers.config import load_provider_ingress_config
 from hcaps.store.jsonl import JsonlCapsuleStore
 from hcaps.substrate.builder import build_substrate
 from hcaps.substrate.manifest import SubstrateBuildConfig
@@ -29,9 +34,17 @@ app = typer.Typer(help="Axiom claim-field substrate tools.")
 format_app = typer.Typer(help="AXF/AXC format commands.")
 package_app = typer.Typer(help="AXP package commands.")
 falsify_app = typer.Typer(help="Generate and audit falsification harness artifacts.")
+corpus_app = typer.Typer(help="Provider-aware corpus ingress commands.")
+corpus_providers_app = typer.Typer(help="Provider configuration checks.")
+corpus_cache_app = typer.Typer(help="Provider cache inspection.")
+corpus_gold_app = typer.Typer(help="Human-review candidate exports.")
 app.add_typer(format_app, name="format")
 app.add_typer(package_app, name="package")
 app.add_typer(falsify_app, name="falsify")
+app.add_typer(corpus_app, name="corpus")
+corpus_app.add_typer(corpus_providers_app, name="providers")
+corpus_app.add_typer(corpus_cache_app, name="cache")
+corpus_app.add_typer(corpus_gold_app, name="gold")
 console = Console()
 
 
@@ -120,6 +133,139 @@ def inspect_substrate_command(
     table.add_row("Relations", str(relation_count))
     table.add_row("Provenance records", str(sum(len(capsule.provenance) for capsule in capsules)))
     console.print(table)
+
+
+@corpus_app.command("build")
+def corpus_build_command(
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Corpus YAML config path."),
+    ],
+) -> None:
+    """Build a provider-aware Axiom corpus artifact set."""
+
+    try:
+        config = load_corpus_build_config(config_path)
+        result = build_corpus(config)
+    except Exception as exc:
+        console.print(f"[red]corpus build failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    table = Table(title="Axiom Corpus Build")
+    table.add_column("Metric")
+    table.add_column("Count", justify="right")
+    table.add_row("Sources", str(result.manifest.source_count))
+    table.add_row("Claim families", str(result.manifest.claim_family_count))
+    table.add_row("Capsules", str(result.manifest.capsule_count))
+    table.add_row("Relations", str(result.manifest.relation_candidate_count))
+    table.add_row("Warnings", str(len(result.manifest.warnings)))
+    console.print(table)
+    console.print(f"Wrote corpus manifest: {result.artifact_paths['corpus_manifest']}")
+    console.print(f"Wrote AXP package: {result.package_path}")
+
+
+@corpus_app.command("inspect")
+def corpus_inspect_command(
+    input_path: Annotated[Path, typer.Argument(help="Corpus manifest or AXP package path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Inspect a corpus manifest or generated AXP package."""
+
+    if not input_path.exists():
+        raise typer.BadParameter(f"input path does not exist: {input_path}")
+    if input_path.is_file():
+        payload = orjson.loads(input_path.read_bytes())
+    else:
+        payload = inspect_package(input_path)
+    if json_output:
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+    table = Table(title="Axiom Corpus")
+    table.add_column("Field")
+    table.add_column("Value")
+    for key, value in payload.items():
+        table.add_row(str(key), str(value))
+    console.print(table)
+
+
+@corpus_providers_app.command("check")
+def corpus_providers_check_command(
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Provider YAML config path."),
+    ],
+) -> None:
+    """Validate provider ingress configuration without making network calls."""
+
+    try:
+        config = load_provider_ingress_config(config_path)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    table = Table(title="Provider Ingress")
+    table.add_column("Role")
+    table.add_column("Provider ID")
+    table.add_column("Type")
+    table.add_column("Mode")
+    table.add_column("Model")
+    table.add_row(
+        "primary",
+        config.primary.provider_id,
+        config.primary.type,
+        config.primary.provider_mode,
+        config.primary.model,
+    )
+    if config.escalation is not None:
+        table.add_row(
+            "escalation",
+            config.escalation.provider_id,
+            config.escalation.type,
+            config.escalation.provider_mode,
+            config.escalation.model,
+        )
+    console.print(table)
+    console.print(f"Cascade enabled: {config.cascade.enabled}")
+    console.print(f"Cache root: {config.cache.root_path}")
+
+
+@corpus_cache_app.command("inspect")
+def corpus_cache_inspect_command(
+    cache_path: Annotated[Path, typer.Argument(help="Provider cache root path.")],
+    json_output: Annotated[bool, typer.Option("--json", help="Print JSON summary.")] = False,
+) -> None:
+    """Inspect provider cache records without reading secrets."""
+
+    manifest = ProviderCache(cache_path).manifest()
+    payload = manifest.model_dump(mode="json")
+    if json_output:
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+    table = Table(title="Provider Cache")
+    table.add_column("Metric")
+    table.add_column("Value")
+    table.add_row("Root", payload["root_path"])
+    table.add_row("Records", str(payload["record_count"]))
+    table.add_row("Provider fingerprints", ", ".join(payload["provider_fingerprints"]))
+    console.print(table)
+
+
+@corpus_gold_app.command("export")
+def corpus_gold_export_command(
+    input_path: Annotated[
+        Path,
+        typer.Option("--input", help="AXP package or AXC stream input path."),
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Option("--output", help="Gold-reference candidate JSONL output path."),
+    ],
+) -> None:
+    """Export human-review candidate records."""
+
+    try:
+        exported = export_gold_candidates(input_path, output_path)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    console.print(f"Wrote gold-reference candidates: {exported}")
 
 
 def _parse_cutoff_date(value: str | None) -> date | None:
