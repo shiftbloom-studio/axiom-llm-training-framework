@@ -28,6 +28,10 @@ The next action after the P6 and post-P6 hardening passes is:
 Review docs/work/POST_P6_HARDENING_AUDIT.md and choose the next research-readiness or external-review work item.
 ```
 
+Readiness artifacts for reviewers and sponsors:
+- `docs/REVIEWER_GUIDE.md` (concise orientation + how to reproduce runs)
+- `docs/SPONSOR_ONE_PAGER.md` + `docs/assets/axiom-sponsor-onepager.jpg` (visual + text one-pager)
+
 P1-P3 are substrate/interface/compiler work only. They do not train the model or produce an evaluation verdict.
 
 ## Format Family
@@ -66,16 +70,29 @@ Target runtime:
 Python >=3.14,<3.15
 ```
 
-Development setup:
+uv is the recommended package manager (the project uses PEP 735 / uv.lock).
+
+### Development setup (uv)
 
 ```bash
 git clone https://github.com/shiftbloom-studio/axiom-llm-training-framework.git
 cd axiom-llm-training-framework
+
+uv python install 3.14
 uv sync --python 3.14
-uv run pytest
+
+# The reinstall step ensures the console script entrypoint (`axiom`) and
+# `import hcaps` work reliably after the first sync (due to the current
+# hatch + editable + uv src-layout interaction in this project).
+uv sync --python 3.14 --reinstall-package axiom-llm-training-framework
+
+uv run axiom --help
+./bin/axiom --help
 ```
 
-Alternative editable install:
+The small `bin/axiom` wrapper is a portable launcher. From inside the tree you can run `./bin/axiom ...` (or add the `bin/` directory to your PATH) as a convenient alternative to `uv run`.
+
+### Alternative (non-uv) editable install
 
 ```bash
 python3.14 -m venv .venv
@@ -84,7 +101,33 @@ pip install -e ".[dev]"
 pytest
 ```
 
+Fish users: `source .venv/bin/activate.fish`
+
+### Day-to-day usage
+
+The primary supported ways (inside the project tree) are:
+
+```bash
+uv run axiom --help
+./bin/axiom --help
+```
+
+After activating the venv you can also use the bare name:
+
+```bash
+source .venv/bin/activate.fish   # or .venv/bin/activate
+axiom --help
+```
+
 ## CLI Examples
+
+The examples below use the bare `axiom` name for readability.
+
+Inside the checkout any of these equivalent invocations work:
+
+- `uv run axiom ...`
+- `./bin/axiom ...`
+- `axiom ...` (after `source .venv/bin/activate.fish`)
 
 Validate an AXC stream:
 
