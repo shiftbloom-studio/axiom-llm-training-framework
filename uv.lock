@@ -65,7 +65,6 @@ name = "axiom-llm-training-framework"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "editables" },
     { name = "numpy" },
     { name = "orjson" },
     { name = "polars" },
@@ -81,7 +80,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "editables" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -91,8 +89,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "editables", specifier = ">=0.6" },
-    { name = "editables", marker = "extra == 'dev'", specifier = ">=0.3" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "orjson", specifier = ">=3.10.18" },
@@ -238,15 +234,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c9/02/bd72be9134d25ed783ecbbc38a539ffaefbf90c78418c7fb7229600dbac7/distlib-0.4.3.tar.gz", hash = "sha256:f152097224a0ae24be5a0f6bae1b9359af82133bce63f98a95f86cae1aede9ed", size = 615141, upload-time = "2026-06-12T08:04:52.847Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/08/9c41fb51ab5b43eb21674aff13df270e8ba6c4b29c8624e328dc7a9482af/distlib-0.4.3-py2.py3-none-any.whl", hash = "sha256:4b0ce306c966eb73bc3a7b6abad017c556dadd92c44701562cd528ac7fde4d5b", size = 470628, upload-time = "2026-06-12T08:04:50.506Z" },
-]
-
-[[package]]
-name = "editables"
-version = "0.6"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/82/f8/02a4e9a0cb961b0feeb431ac96b231c157ecdcbbeacafe9e2fdb4b1dde39/editables-0.6.tar.gz", hash = "sha256:1163834902381c4613787951c5914800fdf155ae08848a373b8ea5006780977c", size = 16763, upload-time = "2026-04-14T10:39:04.677Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/0e/d095533037fc9468f947b19f2da53f869804632b508808de41e86e801797/editables-0.6-py3-none-any.whl", hash = "sha256:d70e4698078a1d033e7786d9c64e5be070d058a67c21417024d38a58ac20aa43", size = 5438, upload-time = "2026-04-14T10:39:03.663Z" },
 ]
 
 [[package]]

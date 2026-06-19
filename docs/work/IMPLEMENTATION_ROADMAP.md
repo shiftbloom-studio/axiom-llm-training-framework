@@ -112,14 +112,14 @@ Primary fairness is based on:
 
 Token parity applies only within text-rendered arms and text-projection comparisons.
 
-### 3.6 Geometry is experimental and ablatable
+### 3.6 Geometry is native learned (ablatable, not optional)
 
-Learned geometry is in-plan, but it is not assumed true. Geometry must be:
+Native learned geometry with nullable/masked data fields and ablatable controls is in-plan as a first-class trained module, but it is not assumed true and must never be decorative. Geometry must be:
 
-- gauge-invariant at the semantic/output boundary;
-- ablatable;
+- native (not decorative or optional);
+- gauge-invariant at the semantic/output boundary only;
+- ablatable via nullable/masked fields and explicit controls (geometry-on vs geometry-off baselines, context-shuffle);
 - compatible with geometry-off baselines;
-- compatible with context-shuffle controls;
 - not allowed to store raw connection matrices as canonical semantic output.
 
 ### 3.7 Provider outputs are data construction only
@@ -170,7 +170,7 @@ P1–P3 build the structured data and interface foundation. P4–P6 build the mo
 
 ## Objective
 
-Build the provider-capable claim-field corpus layer that turns local and provider-assisted source material into replayable, provenance-rich, claim-centric AXF/AXP artifacts.
+Build the provider-capable claim-field corpus layer that turns local and provider-assisted source material into replayable, provenance-rich, structured AXF/AXP artifacts for the native structured-native training pipeline.
 
 ## Scope
 

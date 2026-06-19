@@ -211,8 +211,8 @@ target_only
 gold_reference
 evaluation_reference
 answer_key
-ground_truth
 ```
+(Note: the spelling `ground_truth` appears only in forbidden-field lists and historical notes; active evaluation anchors use `gold_reference` / `evaluation_reference` / `human_verified_reference`.)
 
 ## Checks Run In P2
 

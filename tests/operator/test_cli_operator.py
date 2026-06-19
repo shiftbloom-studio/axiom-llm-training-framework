@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import yaml
 from typer.testing import CliRunner
 
-from hcaps.cli import app
+from hcaps.cli import _execute_full_pipeline, _full_p6_arm_ids, app
+from hcaps.experiments.arms import default_arm_catalog
+from hcaps.providers.config import ProviderIngressConfig
+from hcaps.providers.llama_server_runtime import LlamaServerConfig
+from hcaps.training.config import TrainingConfig
 from hcaps.training.logging import write_json
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -134,3 +142,264 @@ def test_operator_export_command(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert (tmp_path / "bundle.json").exists()
+
+
+def test_interactive_pipeline_execute_minimal(tmp_path: Path) -> None:
+    """Direct test of the consolidated pipeline execute path (corpus->axt->experiment).
+
+    Uses deterministic (no provider key), reduced arms, tiny budget to stay fast while
+    exercising the unreduced code paths (full tensor groups in AXT, loss masks, etc).
+    The interactive prompt wrapper is not exercised here; CLI bare-run is covered via
+    monkeypatch in integration if needed.
+    """
+    # tiny trainer override based on existing test patterns (full fidelity defaults exercised
+    # in the unreduced path; here we use a smoke-scale tiny variant for test runtime)
+    tiny_trainer = TrainingConfig.model_validate(
+        {
+            "run_name": "placeholder",
+            "seed": 13,
+            "input_axt_path": str(tmp_path / "ph.axt"),
+            "output_dir": str(tmp_path),
+            "model_config_path": str(ROOT / "configs" / "model" / "structured_native_smoke.yaml"),
+            "arm_name": "placeholder",
+            "max_steps": 1,
+            "max_epochs": 1,
+            "global_batch_size": 2,
+            "micro_batch_size": 2,
+            "gradient_accumulation_steps": 1,
+            "learning_rate": 0.001,
+            "weight_decay": 0.0,
+            "optimizer": "adamw",
+            "scheduler": "none",
+            "warmup_steps": 0,
+            "cooldown_steps": 0,
+            "clip_grad_norm": 1.0,
+            "precision": "fp32",
+            "checkpoint_interval": 1,
+            "eval_interval": 1,
+            "log_interval": 1,
+            "save_optimizer_state": True,
+            "resume_from": None,
+            "text_projection_loss_weight": 0.2,
+            "geometry_loss_weight": 0.0,
+            "geometry_config_path": None,
+            "control_transform": None,
+            "text_mode": None,
+            "overwrite": True,
+            "structured_loss_weights": {
+                "structured_axc_out": 1.0,
+                "relation_prediction": 1.0,
+                "provenance_recovery": 1.0,
+                "epistemic_proxy": 1.0,
+                "stability_temporal": 1.0,
+                "uncertainty_calibration": 0.5,
+                "geometry_observables": 0.0,
+                "geometry_regularization": 0.0,
+                "text_projection": 0.2,
+            },
+            "curriculum_config": {
+                "schedule_name": "none",
+                "phase_boundaries": [0, 1],
+                "text_projection_weight_schedule": [1.0],
+                "structured_loss_weight_schedule": [1.0],
+                "relation_neighborhood_depth_schedule": [1],
+                "side_channel_dropout_schedule": [0.0],
+                "geometry_activation_schedule": [0.0],
+                "context_dropout_schedule": [0.0],
+                "negative_sample_hardness_schedule": [0.0],
+            },
+            "compute_budget_config": {
+                "max_train_steps": 1,
+                "max_records_seen": 8,
+                "max_wall_clock_seconds": 120.0,
+                "parameter_match_tolerance": 0.25,
+                "compute_match_tolerance": 0.25,
+                "estimate_flops": True,
+            },
+        }
+    )
+
+    sources = ROOT / "examples" / "corpus" / "ml_software_benchmarks" / "sources"
+    run_name = "test_interactive_min"
+    final = _execute_full_pipeline(
+        run_name=run_name,
+        sources_dir=sources,
+        cutoff=date(2026, 1, 1),
+        providers=None,
+        arms=["A_flat_text", "D_structured_native_no_geometry"],
+        trainer_template=tiny_trainer,
+        output_root=tmp_path,
+    )
+
+    assert final.exists()
+    assert (final / "axt").exists()
+    assert (final / "corpus" / "dataset.axp").exists()
+    assert (final / "wizard_configs" / "corpus.yaml").exists()
+    assert (final / "wizard_configs" / "suite.yaml").exists()
+    # at least one arm trained with checkpoint
+    arm_dir = final / "arms" / "A_flat_text"
+    assert arm_dir.exists()
+    assert (arm_dir / "checkpoints" / "latest.pt").exists() or any(
+        (arm_dir / "checkpoints").glob("step_*.pt")
+    )
+    # verdict artifacts from full flow
+    assert (final / "verdict" / "report.md").exists() or (final / "verdict").exists()
+
+
+def test_cli_bare_run_launches_wizard(monkeypatch, tmp_path: Path) -> None:
+    """Verify that bare `axiom run` (no subcommand) triggers the interactive wizard
+    path and collects prompts before delegating to execute.
+    """
+    called: dict[str, object] = {}
+
+    def fake_execute(**kw: object) -> Path:
+        called["run"] = kw.get("run_name")
+        rd = tmp_path / str(kw.get("run_name", "x"))
+        rd.mkdir(parents=True, exist_ok=True)
+        (rd / "verdict").mkdir(exist_ok=True)
+        (rd / "verdict" / "report.md").write_text("# ok\n")
+        return rd
+
+    monkeypatch.setattr("hcaps.cli._execute_full_pipeline", fake_execute)
+
+    runner = CliRunner()
+    # Feed: accept default sources (\n), default cutoff (\n), no-provider (n),
+    # run name, confirm ready (y). Matches prompt order in _run_interactive...
+    inp = "\n\nn\ntest_bare_wizard\ny\n"
+    res = runner.invoke(app, ["run"], input=inp)
+    assert res.exit_code == 0, res.output
+    assert "test_bare_wizard" in (res.output or "") or "Pipeline complete" in (res.output or "")
+    assert called.get("run") == "test_bare_wizard"
+
+
+def test_cli_bare_run_records_remote_provider_mode(monkeypatch, tmp_path: Path) -> None:
+    called: dict[str, object] = {}
+
+    def fake_execute(**kw: object) -> Path:
+        called.update(kw)
+        rd = tmp_path / str(kw.get("run_name", "x"))
+        rd.mkdir(parents=True, exist_ok=True)
+        (rd / "verdict").mkdir(exist_ok=True)
+        (rd / "verdict" / "report.md").write_text("# ok\n", encoding="utf-8")
+        return rd
+
+    monkeypatch.setattr("hcaps.cli._execute_full_pipeline", fake_execute)
+
+    runner = CliRunner()
+    inp = "\n\ny\nhttps://example.test/v1\nremote\nremote-model\nsecret-key\n\ntest_remote\ny\n"
+    res = runner.invoke(app, ["run"], input=inp)
+
+    assert res.exit_code == 0, res.output
+    providers = called["providers"]
+    assert isinstance(providers, ProviderIngressConfig)
+    assert providers.primary.provider_mode == "remote"
+    assert called.get("run_name") == "test_remote"
+
+
+def test_full_pipeline_default_uses_complete_p6_catalog() -> None:
+    catalog = default_arm_catalog(
+        input_axt_path="fixture.axt",
+        model_config="model.yaml",
+        source_content_id="same_source_content",
+        seed=13,
+    )
+
+    assert _full_p6_arm_ids() == list(catalog.keys())
+
+
+def test_axiom_full_uses_integrated_llama_server(monkeypatch, tmp_path: Path) -> None:
+    called: dict[str, object] = {}
+
+    @contextmanager
+    def fake_start_llama_server(config: LlamaServerConfig) -> Iterator[object]:
+        called["llama_config"] = config
+        called["server_alive"] = True
+        try:
+            yield SimpleNamespace(
+                api_key="local-secret",
+                base_url="http://127.0.0.1:54321/v1",
+                model_name=config.hf_repo,
+                config=SimpleNamespace(request_timeout_seconds=180.0),
+            )
+        finally:
+            called["server_alive"] = False
+
+    def fake_build_corpus(**kw: object) -> object:
+        called.update(kw)
+        called["server_alive_during_corpus"] = called["server_alive"]
+        return SimpleNamespace(package_path=tmp_path / "dataset.axp")
+
+    def fake_after_corpus(**kw: object) -> Path:
+        called["server_alive_during_after_corpus"] = called["server_alive"]
+        called["trainer_template"] = kw["trainer_template"]
+        rd = tmp_path / str(kw.get("run_name", "x"))
+        rd.mkdir(parents=True, exist_ok=True)
+        (rd / "verdict").mkdir(exist_ok=True)
+        (rd / "verdict" / "report.md").write_text("# ok\n", encoding="utf-8")
+        return rd
+
+    monkeypatch.setattr("hcaps.cli.start_llama_server", fake_start_llama_server)
+    monkeypatch.setattr("hcaps.cli._build_full_pipeline_corpus", fake_build_corpus)
+    monkeypatch.setattr("hcaps.cli._execute_full_pipeline_after_corpus", fake_after_corpus)
+    monkeypatch.setattr("hcaps.cli._default_full_run_name", lambda profile: f"full_{profile}_fixed")
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
+
+    runner = CliRunner()
+    inp = "\n\nsmoke\nintegrated\nggml-org/test-GGUF:Q4_K_M\n\n"
+    res = runner.invoke(app, ["full"], input=inp)
+
+    assert res.exit_code == 0, res.output
+    llama_config = called["llama_config"]
+    assert isinstance(llama_config, LlamaServerConfig)
+    assert llama_config.hf_repo == "ggml-org/test-GGUF:Q4_K_M"
+    providers = called["providers"]
+    assert isinstance(providers, ProviderIngressConfig)
+    assert providers.primary.provider_id == "integrated_llama_server"
+    assert providers.primary.provider_mode == "local"
+    assert providers.primary.model == "ggml-org/test-GGUF:Q4_K_M"
+    assert providers.escalation is not None
+    assert providers.escalation.provider_id == "perplexity_sonar_escalation"
+    assert providers.escalation.provider_family == "perplexity_sonar"
+    assert providers.escalation.provider_mode == "remote"
+    assert providers.escalation.base_url == "https://api.perplexity.ai"
+    assert providers.escalation.api_key_env == "PERPLEXITY_API_KEY"
+    assert providers.cascade.enabled is True
+    trainer_template = called["trainer_template"]
+    assert isinstance(trainer_template, TrainingConfig)
+    assert trainer_template.max_steps == 2
+    assert called["run_name"] == "full_smoke_fixed"
+    assert called["server_alive_during_corpus"] is True
+    assert called["server_alive_during_after_corpus"] is False
+
+
+def test_axiom_full_uses_remote_provider_and_training_size(monkeypatch, tmp_path: Path) -> None:
+    called: dict[str, object] = {}
+
+    def fake_execute(**kw: object) -> Path:
+        called.update(kw)
+        rd = tmp_path / str(kw.get("run_name", "x"))
+        rd.mkdir(parents=True, exist_ok=True)
+        (rd / "verdict").mkdir(exist_ok=True)
+        (rd / "verdict" / "report.md").write_text("# ok\n", encoding="utf-8")
+        return rd
+
+    monkeypatch.setattr("hcaps.cli._execute_full_pipeline", fake_execute)
+    monkeypatch.setattr("hcaps.cli._default_full_run_name", lambda profile: f"full_{profile}_fixed")
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
+
+    runner = CliRunner()
+    inp = "\n\npilot\nremote\nsonar-pro\n"
+    res = runner.invoke(app, ["full"], input=inp)
+
+    assert res.exit_code == 0, res.output
+    providers = called["providers"]
+    assert isinstance(providers, ProviderIngressConfig)
+    assert providers.primary.provider_id == "perplexity_sonar_primary"
+    assert providers.primary.provider_family == "perplexity_sonar"
+    assert providers.primary.provider_mode == "remote"
+    assert providers.primary.model == "sonar-pro"
+    assert providers.primary.base_url == "https://api.perplexity.ai"
+    trainer_template = called["trainer_template"]
+    assert isinstance(trainer_template, TrainingConfig)
+    assert trainer_template.max_steps == 20
+    assert trainer_template.compute_budget_config.max_records_seen == 256

@@ -189,6 +189,9 @@ def _run_provider_tasks(
     disagreements: list[ProviderDisagreement] = []
     family_records: list[dict[str, Any]] = []
     relation_degree = _relation_degree(substrate_result)
+    provider_ids = [cascade.primary_config.provider_id]
+    if cascade.escalation_config is not None:
+        provider_ids.append(cascade.escalation_config.provider_id)
 
     for family in substrate_result.families:
         task_records: dict[str, dict[str, Any]] = {}
@@ -209,7 +212,7 @@ def _run_provider_tasks(
                 context={
                     "source_count": family.independent_source_count_proxy,
                     "relation_degree": relation_degree.get(family.family_id, 0),
-                    "provider_ids": [cascade.primary_config.provider_id],
+                    "provider_ids": provider_ids,
                 },
             )
             run = cascade.run(request)

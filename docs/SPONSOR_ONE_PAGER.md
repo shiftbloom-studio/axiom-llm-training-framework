@@ -36,8 +36,7 @@ Text projection is **mandatory** for LLM compatibility and head-to-head comparis
 
 ```bash
 uv python install 3.14
-uv sync --python 3.14
-uv sync --python 3.14 --reinstall-package axiom-llm-training-framework
+uv sync --python 3.14 --extra dev
 
 # Compile a tiny bundle and run a smoke training arm
 uv run axiom axt compile --input examples/axf/v0_1/minimal_dataset.axp \

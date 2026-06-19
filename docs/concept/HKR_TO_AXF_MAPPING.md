@@ -18,7 +18,7 @@ implications rather than quoting source text.
 | E proxy | `epistemic_state.evidential_anchoring` |
 | T proxy | `epistemic_state.transformation_pressure` |
 | R proxy | `epistemic_state.independent_redundancy` |
-| context transport / curvature | optional `geometry` section |
+| context transport / curvature | native (nullable/maskable) `geometry` section |
 | gauge identifiability | `geometry.gauge_policy = gauge_invariant_observables_only` |
 | structured tensor bridge | AXT input and target tensors |
 | structured model emission | AXC-out with raw, validated, interpreted, and text-projection layers |

@@ -2,9 +2,11 @@
 
 **Axiom is a structured-native LLM training framework.**
 
-Axiom tests whether claim-field structure improves epistemic competence compared with flat text under matched source content, temporal cutoffs, splits, extraction substrate, parameter budgets, compute/FLOPs, and training schedules where applicable.
+Axiom tests whether structured claim-field training (with native geometry) improves epistemic competence compared with flat text under matched source content, temporal cutoffs, splits, extraction substrate, parameter budgets, compute/FLOPs, and training schedules where applicable. Primary fairness uses the full matched set for structured-native vs. flat arms; token parity applies only inside text-rendered arms and text-projection losses.
 
-The project remains LLM-compatible through text projection, token baselines, text-rendered arms, and secondary text losses. Its primary substrate is not a flat token stream. Its primary substrate is structured claim-field data: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, and nullable/maskable gauge-invariant geometry.
+The framework remains LLM-compatible through text projection (for baselines, comparability, and optional human-facing output), token baselines, text-rendered arms, and secondary text losses. Text projection is the compatibility and evaluation interface, not the native representation. The primary substrate, encoder input, conditioning, core, decoder, and emission (AXC-out) are structured claim-field data and tensors: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, provider traces, negative pools, and native learned geometry (nullable/masked gauge-invariant observables, ablatable).
+
+AXC-out (structured model emission before interpretation) and AXT (tensor bundle) are first-class visible interfaces alongside AXC/AXP/AXF. Text is secondary projection only.
 
 Text is a projection and comparison interface. AXC, AXT, and AXC-out are the primary structured interfaces.
 
@@ -54,7 +56,7 @@ Axiom preserves these rules unless a future accepted ADR explicitly changes them
 - no temporal leakage;
 - time and lateral context are distinct axes;
 - redundancy is not popularity;
-- geometry is experimental, ablatable, and gauge-invariant;
+- geometry is native (not decorative), learned as a real module, ablatable (not optional), with nullable/masked fields and controls, reported only via gauge-invariant observables;
 - raw gauge matrices are not canonical semantic outputs;
 - missing targets require loss masks and are not negative examples;
 - negative samples are required for relation, provenance, and context objectives;
@@ -79,18 +81,14 @@ git clone https://github.com/shiftbloom-studio/axiom-llm-training-framework.git
 cd axiom-llm-training-framework
 
 uv python install 3.14
-uv sync --python 3.14
+uv sync --python 3.14 --extra dev
 
-# The reinstall step ensures the console script entrypoint (`axiom`) and
-# `import hcaps` work reliably after the first sync (due to the current
-# hatch + editable + uv src-layout interaction in this project).
-uv sync --python 3.14 --reinstall-package axiom-llm-training-framework
-
-uv run axiom --help
 ./bin/axiom --help
 ```
 
-The small `bin/axiom` wrapper is a portable launcher. From inside the tree you can run `./bin/axiom ...` (or add the `bin/` directory to your PATH) as a convenient alternative to `uv run`.
+The small `bin/axiom` wrapper is a portable launcher. From inside the tree you can run `./bin/axiom ...` (or add the `bin/` directory to your PATH) without activating the venv or invoking `uv` yourself. `uv run` remains useful for developer tools (`pytest`, `ruff`, `mypy`, etc.).
+
+`./bin/axiom` is the most reliable way to invoke the CLI. It resolves the project directory explicitly, so it works from inside the tree or when `bin/` is on your PATH, and it uses an invocation resilient to uv/hatchling editable-install edge cases that occasionally leave the generated `.venv/bin/axiom` shim unable to import `hcaps`.
 
 ### Alternative (non-uv) editable install
 
@@ -105,29 +103,48 @@ Fish users: `source .venv/bin/activate.fish`
 
 ### Day-to-day usage
 
-The primary supported ways (inside the project tree) are:
+The primary supported CLI path is the wrapper:
 
 ```bash
-uv run axiom --help
 ./bin/axiom --help
 ```
 
-After activating the venv you can also use the bare name:
+With the personal fish/Ghostty integration, the bare name is available from any directory:
 
 ```bash
-source .venv/bin/activate.fish   # or .venv/bin/activate
 axiom --help
 ```
+
+### CLI troubleshooting: "No module named 'hcaps'"
+
+If you see:
+
+```
+ModuleNotFoundError: No module named 'hcaps'
+```
+
+(from `uv run axiom`, bare `axiom`, or the `.venv/bin/axiom` shim), the project package install in the venv is in a partial state. This can happen due to interactions between `uv run` on console scripts, hatchling editable builds, and prior failed uninstalls that leave a `dist-info` without a `RECORD` (or no accompanying `.pth` that adds `src/`).
+
+**Fix (pick one):**
+
+```bash
+# Preferred quick repair (also works for non-uv venvs)
+uv pip install -e . --python .venv/bin/python
+
+# Or force via sync
+uv sync --python 3.14 --extra dev --reinstall-package axiom-llm-training-framework
+```
+
+Running `./bin/axiom --help` (or any subcommand) bypasses the generated shim by launching the editable project directly. If you specifically need the generated shims (`uv run axiom`, activated `axiom`, or `.venv/bin/axiom`) to work directly, run one of the repair commands above.
 
 ## CLI Examples
 
 The examples below use the bare `axiom` name for readability.
 
-Inside the checkout any of these equivalent invocations work:
+Inside the checkout the reliable invocation is:
 
-- `uv run axiom ...`
-- `./bin/axiom ...`
-- `axiom ...` (after `source .venv/bin/activate.fish`)
+- `./bin/axiom ...` (most reliable)
+- `axiom ...` (with `bin/` on PATH, including the personal fish/Ghostty setup)
 
 Validate an AXC stream:
 
@@ -236,6 +253,18 @@ axiom run inspect runs/p6_smoke_suite
 ```
 
 The smoke suite is a runtime check. It writes checkpoints, metrics, predictions, fairness reports, scores, and a verdict report, but it is not a benchmark or scale-up result.
+
+### Full pipeline (one command)
+
+For a single guided end-to-end training run from data extraction through finished checkpoints, run:
+
+```bash
+axiom full
+```
+
+`axiom full` prompts only for the required operator choices: source directory, temporal cutoff, training size (`smoke`, `pilot`, or `standard`), extraction backend (`integrated` llama-server cascade or remote Perplexity), and the model/API key required by that backend. Integrated mode starts `llama-server` locally from the selected Hugging Face GGUF model as the primary extraction provider, enables the built-in provider cascade with Perplexity Sonar as remote escalation, uses both only for corpus construction, then shuts the local server down before AXT compilation, training, scoring, or verdict generation. Remote mode uses Perplexity Sonar as the primary construction provider. API keys are held in-process via `PERPLEXITY_API_KEY` and are not written to artifacts.
+
+The command preserves the full structured-native path: provider-aware corpus ingress, AXT compilation, the complete P6 arm catalog, learned geometry and controls, AXC-out/text projection, scoring, verdicts, and reproducibility artifacts. The resulting `runs/<generated-name>/` contains trained checkpoints (`arms/*/checkpoints/latest.pt`) and is fully usable with `axiom run inspect`, `axiom run export`, and `axiom run list`.
 
 ## v1 Roadmap
 
