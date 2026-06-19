@@ -1,4 +1,6 @@
-# Axiom — Current Concept, Decisions & Guardrails
+# Axiom — Structured-Native LLM Training Framework
+
+**Axiom is a structured-native LLM training framework.** Text is a projection for compatibility and comparison. The primary representation, substrate, conditioning, core computation, and emission are structured claim-field data and AXC-out.
 
 This document holds the **synthesized current concept** plus the **owner's decisions and
 direction**, captured with their meaning preserved. It is the authority on *intent and
@@ -9,9 +11,12 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
 ## 1. Mission & posture
 
 - Build a testable research framework for one question: under matched source content,
-  temporal cutoffs, splits, extraction substrate, parameters, compute/FLOPs, and schedules
-  where applicable, does **claim-field structured pretraining** beat flat text on
-  **epistemic competence**?
+  temporal cutoffs, splits, extraction substrate, parameter budgets, compute/FLOPs, and
+  schedules where applicable, does structured-native claim-field training beat flat text
+  (and text-rendered baselines) on **epistemic competence**? Primary fairness is the full
+  matched set across structured vs. flat arms; token parity is only a secondary constraint
+  inside text-projection arms. The old "equal tokens/compute/params" framing as primary
+  fairness rule is superseded by the broader matched-content + ablatable-factor design.
 - **Build the full theoretical model — properly but small.** No reductions; not
   over-fine-tuned. Do not water down the speculative core out of caution. The falsification
   controls exist to *measure the bold idea honestly*, never as a reason to pre-reduce it.
@@ -63,9 +68,7 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
   torch structured-native model** (encoder + core + structured decoder + text-projection
   head), not a stock HF causal LM; HF is optional, only for the text projection/baselines
   (ADR-0011).
-- **Geometry mode:** fixed/precomputed (Mode A) vs learned-while-training (Mode B). Chosen:
-  **torch-native learned (Mode B)** as the thesis-carrying form; geometry is in-plan,
-  concurrent, ablatable, gauge-invariant. (ADR-0005/0008/0009)
+- **Geometry:** native learned geometry module (torch-native, not decorative or optional). Fixed/precomputed (Mode A) vs learned-while-training (Mode B). Chosen: **torch-native learned (Mode B)** as the thesis-carrying form; geometry is in-plan, concurrent, ablatable with nullable/masked fields and controls, gauge-invariant. (ADR-0005/0008/0009)
 - **Extraction:** a **universal data-ingress interface** (OpenAI-API-compatible provider,
   local *and* remote first-class, + a generic Python provider) feeding provider-agnostic
   extraction logic, with a **local-first cascade** (bulk local → gated remote escalation for
@@ -122,10 +125,11 @@ DECISIONS.md, this file and DECISIONS.md take precedence.
   objective set + heads; relation-neighborhood conditioning with the n-ary path kept open;
   the epistemic "router" escalation kept (not dropped).
 - **Falsification-first:** matched source content, temporal cutoffs, splits, extraction
-  substrate, parameters, compute/FLOPs, and schedules where applicable; token parity applies
-  only inside text-rendered arms and text-projection comparisons; redundancy ≠ popularity;
-  only gauge-invariant observables; negative results preserved; geometry always ablatable
-  with a parameter-matched non-geometric baseline and a context-shuffle control.
+  substrate, parameter budgets, compute/FLOPs, and schedules where applicable; token parity
+  applies only inside text-rendered arms and text-projection comparisons; redundancy ≠
+  popularity; only gauge-invariant observables; negative results preserved; native learned
+  geometry (ablatable, not optional) with nullable/masked data fields and ablatable
+  controls, plus a parameter-matched non-geometric baseline and a context-shuffle control.
 - **No truth labels, ever.**
 - **Don't collapse the boundaries to plain text.** Keep structured input *and* structured
   output (text is one projection); structured channels and output heads stay ablatable so

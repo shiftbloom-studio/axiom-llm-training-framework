@@ -78,7 +78,7 @@ Do not violate these unless the owner explicitly overrides them:
 2. No temporal leakage.
 3. Time is not lateral context.
 4. Redundancy is not popularity.
-5. Geometry is experimental, ablatable, and gauge-invariant.
+5. Geometry is native (not decorative), learned as a real trained module, ablatable (not optional), with nullable/masked data fields and ablatable controls; reported only via gauge-invariant observables.
 6. Raw gauge matrices are not canonical semantic outputs.
 7. Structured input, structured supervision, and geometry must remain separately ablatable.
 8. External LLMs may be used only for data construction, never in the training or evaluation path.
@@ -223,7 +223,7 @@ Time and lateral context are separate axes. Do not merge them into a single cont
 
 ## 10. Geometry rules
 
-Geometry may be learned, but it must be reported only through gauge-invariant observables.
+Geometry is native (not decorative), learned as a real trained module (not optional), ablatable with nullable/masked data fields and controls. It must be reported only through gauge-invariant observables.
 
 Allowed canonical observables:
 

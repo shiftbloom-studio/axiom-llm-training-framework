@@ -36,6 +36,15 @@ class CorpusBuildConfig(BaseModel):
     def serialize_path(self, value: Path | None) -> str | None:
         return str(value) if value is not None else None
 
+    def to_yaml(self, path: str | Path) -> None:
+        """Write this config to a YAML file for reproducibility."""
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            yaml.safe_dump(self.model_dump(mode="json"), sort_keys=True),
+            encoding="utf-8",
+        )
+
 
 class CorpusManifest(BaseModel):
     """Top-level reproducibility manifest for one corpus build."""

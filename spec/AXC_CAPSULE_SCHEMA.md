@@ -19,7 +19,7 @@ format_version = "0.1.0"
 - `context`: domains, communities, and optional context description.
 - `epistemic_state`: stabilization status and epistemic proxy measures.
 - `relations`: typed relation candidates to other claim families.
-- `geometry`: optional reserved gauge-invariant observables.
+- `geometry`: native reserved (nullable/maskable via data fields) gauge-invariant observables.
 - `provenance`: source references and construction method.
 - `training`: eligibility, target declarations, target availability, and loss-mask
   compatibility metadata.

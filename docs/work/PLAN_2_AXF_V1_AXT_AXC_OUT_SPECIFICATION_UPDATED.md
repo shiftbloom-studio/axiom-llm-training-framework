@@ -65,8 +65,8 @@ P2 must preserve the following design decisions:
 4. **Provider identity/slant is lateral context.**
 5. **Time and lateral context remain distinct axes.**
 6. **No binary truth labels.**
-7. **Geometry is optional, experimental, ablatable, and gauge-invariant.**
-8. **Fairness is matched source content + temporal cutoffs + splits + params + compute/FLOPs.**
+7. **Geometry is native (not decorative), learned as a real module, ablatable (not optional) with nullable/masked data fields and ablatable controls; reported only via gauge-invariant observables.**
+8. **Fairness is the full matched set (source content + temporal cutoffs + splits + extraction substrate + parameter budget + compute/FLOPs + schedule); the old "equal tokens/compute/params" is not the primary rule.**
 9. **Token parity applies only inside text-rendered arms and text projection.**
 10. **AXC-out raw emissions must be stored separately from interpreted projections.**
 
@@ -806,8 +806,8 @@ target_only
 gold_reference
 evaluation_reference
 answer_key
-ground_truth
 ```
+(Note: `ground_truth` spelling is confined to pure forbidden-field lists and historical contexts only; use `gold_reference`/`evaluation_reference` for active eval anchors.)
 
 ---
 

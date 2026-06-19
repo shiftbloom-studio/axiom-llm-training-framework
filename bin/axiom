@@ -6,8 +6,13 @@
 #   ./bin/axiom axt compile --input ... --output ...
 #
 # Works in bash, zsh, fish, etc.
-# After the one-time `uv sync --python 3.14 --extra dev` + reinstall-package,
+# After the one-time `uv sync --python 3.14 --extra dev`,
 # this (or the global fish setup) gives you the `axiom` command that feels native.
+#
+# Implementation note: runs the project venv Python directly with src/ on
+# PYTHONPATH rather than depending on the generated console-script shim. This is
+# resilient to uv/hatchling editable install edge cases that can cause
+# "ModuleNotFoundError: No module named 'hcaps'" from generated shims.
 
 set -e
 
@@ -23,5 +28,25 @@ while [ -L "$script" ]; do
   esac
 done
 project_dir=$(cd -P "$(dirname "$script")/.." && pwd)
+venv_python="$project_dir/.venv/bin/python"
 
-exec uv run --project "$project_dir" axiom "$@"
+if [ ! -x "$venv_python" ]; then
+  echo "Axiom: creating local Python environment..." >&2
+  uv sync --project "$project_dir" --python 3.14 --extra dev >&2
+fi
+
+cd "$project_dir"
+if [ -n "${PYTHONPATH:-}" ]; then
+  export PYTHONPATH="$project_dir/src:$PYTHONPATH"
+else
+  export PYTHONPATH="$project_dir/src"
+fi
+
+# Use python -c + argv rewrite so that --help and error messages show
+# "Usage: axiom ..." (not "python -m hcaps.cli").
+exec "$venv_python" -c '
+import sys
+from hcaps.cli import app
+sys.argv = ["axiom"] + sys.argv[1:]
+sys.exit(app())
+' -- "$@"

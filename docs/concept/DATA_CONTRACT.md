@@ -130,7 +130,7 @@ Raw emissions are scored directly. The interpreter is deterministic and ablatabl
 
 ## Geometry Rules
 
-Geometry is optional, experimental, and ablatable. Canonical semantic outputs may include only gauge-invariant observables:
+Geometry is native (not decorative), learned as a real trained module, ablatable (not optional) with nullable/masked data fields and ablatable controls. Canonical semantic outputs may include only gauge-invariant observables:
 
 - curvature score;
 - transport inconsistency;

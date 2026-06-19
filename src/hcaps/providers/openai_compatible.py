@@ -37,9 +37,13 @@ class OpenAICompatibleProvider:
             "messages": [
                 {
                     "role": "system",
-                    "content": "Return schema-compatible JSON only. Do not emit truth labels.",
+                    "content": (
+                        "You are an Axiom data-construction extractor. Use only the supplied "
+                        "source text and metadata. Return one JSON object only. Do not emit "
+                        "truth labels, correctness labels, answer keys, or future-only fields."
+                    ),
                 },
-                {"role": "user", "content": request.input_text},
+                {"role": "user", "content": _request_prompt(request)},
             ],
             "temperature": 0,
         }
@@ -128,6 +132,52 @@ def _normalize_openai_response(raw_response: dict[str, Any]) -> dict[str, Any]:
         if isinstance(decoded, dict):
             return decoded
     return {"raw_text": str(content), "confidence": 0.0}
+
+
+def _request_prompt(request: ProviderRequest) -> str:
+    source_ref = json.dumps(request.source_ref, sort_keys=True)
+    context = json.dumps(request.context, sort_keys=True)
+    return "\n".join(
+        [
+            f"Task: {request.task}",
+            f"Schema version: {request.schema_version}",
+            f"Template version: {request.template_version}",
+            f"Source reference JSON: {source_ref}",
+            f"Construction context JSON: {context}",
+            "Return schema:",
+            _task_schema(request.task),
+            "Source text:",
+            request.input_text,
+        ]
+    )
+
+
+def _task_schema(task: str) -> str:
+    if task == "claim_extraction":
+        return (
+            '{"claims":[{"text":"...","claim_type":"scientific_claim|causal_claim|'
+            'measurement_claim|method_claim|definitional_claim|historical_claim|other",'
+            '"confidence":0.0,"source_spans":[],"notes":"..."}],"confidence":0.0}'
+        )
+    if task == "epistemic_extraction":
+        return (
+            '{"ontology_compatibility":{"value":null,"method":"...","confidence":0.0,'
+            '"notes":"construction proxy, not evaluation reference"},'
+            '"evidential_anchoring":{"value":null,"method":"...","confidence":0.0},'
+            '"transformation_pressure":{"value":null,"method":"...","confidence":0.0},'
+            '"uncertainty":{"value":null,"method":"...","confidence":0.0},'
+            '"independent_redundancy":{"value":null,"method":"...","confidence":0.0},'
+            '"source_count":0,"provider_disagreement_count":0,"relation_degree":0,'
+            '"method_diversity_proxy":null,"source_type_diversity_proxy":null,'
+            '"benchmark_family_diversity_proxy":null,"confidence":0.0}'
+        )
+    if task == "structured_view_generation":
+        return (
+            '{"views":{"neutral_summary":null,"technical_summary":null,"teaching_note":null,'
+            '"faq":null,"counterargument":null,"limitations":null,'
+            '"historical_update_or_temporal_note":null},"source_spans_used":[],"confidence":0.0}'
+        )
+    return '{"relations":[],"candidate_hard_negatives":[],"confidence":0.0}'
 
 
 def _optional_float(value: Any) -> float | None:

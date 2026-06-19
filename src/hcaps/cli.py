@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import date
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import orjson
 import typer
+import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -22,7 +24,8 @@ from hcaps.axt import (
 from hcaps.axt.inspect import compare_axt_bundles, inspect_axt_bundle, inspect_tensor_group
 from hcaps.corpus.builder import build_corpus
 from hcaps.corpus.gold import export_gold_candidates
-from hcaps.corpus.manifest import load_corpus_build_config
+from hcaps.corpus.manifest import CorpusBuildConfig, CorpusBuildResult, load_corpus_build_config
+from hcaps.experiments.arms import default_arm_catalog
 from hcaps.experiments.comparison import control_effects, pairwise_metric_deltas
 from hcaps.experiments.configs import ExperimentSuiteConfig
 from hcaps.experiments.orchestrator import ExperimentOrchestrator
@@ -46,14 +49,28 @@ from hcaps.model import AxiomModelConfig, AxiomStructuredModel
 from hcaps.model.parameter_count import parameter_count
 from hcaps.operator import export_run, inspect_run, list_runs
 from hcaps.providers.cache import ProviderCache
-from hcaps.providers.config import load_provider_ingress_config
+from hcaps.providers.config import (
+    ProviderCacheConfig,
+    ProviderCascadeConfig,
+    ProviderEndpointConfig,
+    ProviderGateConfig,
+    ProviderIngressConfig,
+    load_provider_ingress_config,
+)
+from hcaps.providers.llama_server_runtime import (
+    LlamaServerConfig,
+    LlamaServerHandle,
+    start_llama_server,
+)
 from hcaps.scoring import score_run
 from hcaps.store.jsonl import JsonlCapsuleStore
 from hcaps.substrate.builder import build_substrate
 from hcaps.substrate.manifest import SubstrateBuildConfig
 from hcaps.training import AxiomTrainer, TrainingConfig
 from hcaps.training.checkpointing import load_training_checkpoint
+from hcaps.training.config import ComputeBudgetConfig, CurriculumConfig, LossWeights
 from hcaps.training.logging import write_json
+from hcaps.utils.time import utc_now
 from hcaps.verdict import VerdictThresholds, generate_verdict, write_verdict_report
 from hcaps.verdict.report import inspect_verdict
 
@@ -89,6 +106,323 @@ corpus_app.add_typer(corpus_providers_app, name="providers")
 corpus_app.add_typer(corpus_cache_app, name="cache")
 corpus_app.add_typer(corpus_gold_app, name="gold")
 console = Console()
+
+TRAINING_SIZE_PROFILES: dict[str, dict[str, int | float | None]] = {
+    "smoke": {
+        "max_steps": 2,
+        "max_records_seen": 24,
+        "max_wall_clock_seconds": 300.0,
+    },
+    "pilot": {
+        "max_steps": 20,
+        "max_records_seen": 256,
+        "max_wall_clock_seconds": 1800.0,
+    },
+    "standard": {
+        "max_steps": 100,
+        "max_records_seen": 2048,
+        "max_wall_clock_seconds": 7200.0,
+    },
+}
+PERPLEXITY_BASE_URL = "https://api.perplexity.ai"
+PERPLEXITY_API_KEY_ENV = "PERPLEXITY_API_KEY"
+DEFAULT_PERPLEXITY_MODEL = "sonar-pro"
+FULL_PIPELINE_HIGH_IMPACT_CLAIM_TYPES = [
+    "causal_claim",
+    "measurement_claim",
+    "method_claim",
+    "scientific_claim",
+]
+
+
+@app.command("full")
+def full_command() -> None:
+    """Run the complete guided Axiom pipeline from extraction through trained checkpoints."""
+
+    _run_full_pipeline_wizard()
+
+
+def _run_full_pipeline_wizard() -> None:
+    console.print("[bold cyan]Axiom Full Pipeline[/bold cyan]")
+    console.print(
+        "Runs provider-backed data extraction, AXT compilation, the complete P6 arm catalog,\n"
+        "scoring, verdict generation, and reproducibility artifacts."
+    )
+    sources_path = _prompt_source_directory()
+    cutoff = _parse_cutoff_date(
+        typer.prompt("Temporal cutoff date (YYYY-MM-DD)", default="2026-01-01")
+    )
+    training_profile = _prompt_training_size()
+    run_name = _default_full_run_name(training_profile)
+    trainer_template = _training_template_for_profile(training_profile)
+    extraction_mode = _prompt_extraction_mode()
+
+    try:
+        if extraction_mode == "integrated":
+            final_dir = _run_full_pipeline_with_integrated_llama(
+                run_name=run_name,
+                sources_path=sources_path,
+                cutoff=cutoff,
+                trainer_template=trainer_template,
+            )
+        else:
+            providers = _prompt_remote_openai_provider_config()
+            final_dir = _execute_full_pipeline(
+                run_name=run_name,
+                sources_dir=sources_path,
+                cutoff=cutoff,
+                providers=providers,
+                trainer_template=trainer_template,
+            )
+    except Exception as exc:
+        console.print(f"[red]Full pipeline failed:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    _print_pipeline_success(final_dir, run_name)
+
+
+def _prompt_source_directory() -> Path:
+    default_sources = Path("examples/corpus/ml_software_benchmarks/sources")
+    sources_str = typer.prompt(
+        "Source documents directory",
+        default=str(default_sources),
+    )
+    sources_path = Path(sources_str).expanduser().resolve()
+    if not sources_path.exists():
+        console.print(f"[red]Source path does not exist: {sources_path}[/red]")
+        raise typer.Exit(1)
+    return sources_path
+
+
+def _prompt_training_size() -> str:
+    raw = str(
+        typer.prompt(
+            "Training size (smoke, pilot, standard)",
+            default="smoke",
+        )
+    ).strip()
+    aliases: dict[str, str] = {
+        "s": "smoke",
+        "p": "pilot",
+        "std": "standard",
+        "full": "standard",
+    }
+    profile = aliases.get(raw.casefold(), raw.casefold())
+    if profile not in TRAINING_SIZE_PROFILES:
+        console.print("[red]Training size must be smoke, pilot, or standard.[/red]")
+        raise typer.Exit(1)
+    return profile
+
+
+def _prompt_extraction_mode() -> str:
+    raw = str(
+        typer.prompt(
+            "Data extraction provider (integrated or remote)",
+            default="integrated",
+        )
+    ).strip()
+    mode = raw.casefold()
+    if mode not in {"integrated", "remote"}:
+        console.print("[red]Extraction provider must be integrated or remote.[/red]")
+        raise typer.Exit(1)
+    return mode
+
+
+def _default_full_run_name(training_profile: str) -> str:
+    stamp = utc_now().strftime("%Y%m%d_%H%M%S")
+    return f"full_{training_profile}_{stamp}"
+
+
+def _training_template_for_profile(profile: str) -> TrainingConfig:
+    settings = TRAINING_SIZE_PROFILES[profile]
+    base = _default_smoke_trainer_template()
+    compute_budget = base.compute_budget_config.model_copy(
+        update={
+            "max_train_steps": int(settings["max_steps"] or 1),
+            "max_records_seen": settings["max_records_seen"],
+            "max_wall_clock_seconds": settings["max_wall_clock_seconds"],
+        }
+    )
+    payload = base.model_dump(mode="python")
+    payload.update(
+        {
+            "max_steps": int(settings["max_steps"] or 1),
+            "compute_budget_config": compute_budget,
+        }
+    )
+    return TrainingConfig.model_validate(payload)
+
+
+def _run_full_pipeline_with_integrated_llama(
+    *,
+    run_name: str,
+    sources_path: Path,
+    cutoff: date | None,
+    trainer_template: TrainingConfig,
+) -> Path:
+    hf_repo = typer.prompt(
+        "Hugging Face GGUF model for data extraction (repo[:quant])",
+    ).strip()
+    if not hf_repo:
+        console.print("[red]A Hugging Face GGUF model is required for integrated extraction.[/red]")
+        raise typer.Exit(1)
+    perplexity = _prompt_perplexity_endpoint_config(
+        provider_id="perplexity_sonar_escalation",
+        prompt_label="Perplexity escalation model",
+    )
+    log_path = Path("runs") / run_name / "llama_server" / "llama-server.log"
+    run_dir, wizard_dir = _prepare_full_pipeline_run(run_name, Path("runs"))
+    console.print("[bold]Starting integrated llama-server for corpus extraction[/bold]")
+    with start_llama_server(
+        LlamaServerConfig(
+            hf_repo=hf_repo,
+            log_path=log_path,
+            status_callback=lambda message: console.print(f"[dim]{message}[/dim]"),
+        )
+    ) as server:
+        providers = _integrated_llama_provider_config(server, escalation=perplexity)
+        corpus_result = _build_full_pipeline_corpus(
+            run_name=run_name,
+            sources_dir=sources_path,
+            cutoff=cutoff,
+            providers=providers,
+            run_dir=run_dir,
+            wizard_dir=wizard_dir,
+        )
+    console.print("[bold]Integrated llama-server stopped after corpus extraction[/bold]")
+    return _execute_full_pipeline_after_corpus(
+        run_name=run_name,
+        corpus_result=corpus_result,
+        trainer_template=trainer_template,
+        output_root=Path("runs"),
+        run_dir=run_dir,
+        wizard_dir=wizard_dir,
+    )
+
+
+def _integrated_llama_provider_config(
+    server: LlamaServerHandle,
+    *,
+    escalation: ProviderEndpointConfig,
+) -> ProviderIngressConfig:
+    env_name = "AXIOM_LLAMA_SERVER_API_KEY"
+    os.environ[env_name] = server.api_key
+    primary = ProviderEndpointConfig(
+        provider_id="integrated_llama_server",
+        type="openai_compatible",
+        provider_family="llama.cpp",
+        provider_mode="local",
+        model=server.model_name,
+        base_url=server.base_url,
+        api_key_env=env_name,
+        timeout_seconds=server.config.request_timeout_seconds,
+        max_retries=1,
+        dry_run=False,
+    )
+    return ProviderIngressConfig(
+        primary=primary,
+        escalation=escalation,
+        cascade=_full_pipeline_cascade_config(),
+        cache=ProviderCacheConfig(
+            root_path=Path(".cache/axiom/providers").resolve(),
+            mode="live",
+        ),
+    )
+
+
+def _prompt_remote_openai_provider_config() -> ProviderIngressConfig:
+    primary = _prompt_perplexity_endpoint_config(
+        provider_id="perplexity_sonar_primary",
+        prompt_label="Perplexity extraction model",
+    )
+    return ProviderIngressConfig(
+        primary=primary,
+        escalation=None,
+        cascade=ProviderCascadeConfig(enabled=False),
+        cache=ProviderCacheConfig(
+            root_path=Path(".cache/axiom/providers").resolve(),
+            mode="live",
+        ),
+    )
+
+
+def _prompt_perplexity_endpoint_config(
+    *,
+    provider_id: str,
+    prompt_label: str,
+) -> ProviderEndpointConfig:
+    model = str(
+        typer.prompt(
+            prompt_label,
+            default=DEFAULT_PERPLEXITY_MODEL,
+        )
+    ).strip()
+    if not model:
+        console.print("[red]Perplexity model is required.[/red]")
+        raise typer.Exit(1)
+    api_key_env = _ensure_perplexity_api_key()
+    return _perplexity_endpoint_config(
+        provider_id=provider_id,
+        model=model,
+        api_key_env=api_key_env,
+    )
+
+
+def _ensure_perplexity_api_key() -> str:
+    if os.environ.get(PERPLEXITY_API_KEY_ENV):
+        console.print(f"[green]Using ${PERPLEXITY_API_KEY_ENV} for Perplexity API calls.[/green]")
+        return PERPLEXITY_API_KEY_ENV
+    api_key = typer.prompt(
+        "Perplexity API key (hidden; stored only for this process)",
+        hide_input=True,
+    ).strip()
+    if not api_key:
+        console.print("[red]Perplexity API key is required for cascade escalation.[/red]")
+        raise typer.Exit(1)
+    os.environ[PERPLEXITY_API_KEY_ENV] = api_key
+    return PERPLEXITY_API_KEY_ENV
+
+
+def _perplexity_endpoint_config(
+    *,
+    provider_id: str,
+    model: str,
+    api_key_env: str,
+) -> ProviderEndpointConfig:
+    return ProviderEndpointConfig(
+        provider_id=provider_id,
+        type="openai_compatible",
+        provider_family="perplexity_sonar",
+        provider_mode="remote",
+        model=model,
+        base_url=PERPLEXITY_BASE_URL,
+        api_key_env=api_key_env,
+        timeout_seconds=180.0,
+        max_retries=2,
+        dry_run=False,
+    )
+
+
+def _full_pipeline_cascade_config() -> ProviderCascadeConfig:
+    return ProviderCascadeConfig(
+        enabled=True,
+        gate=ProviderGateConfig(
+            min_confidence=0.72,
+            high_impact_claim_types=FULL_PIPELINE_HIGH_IMPACT_CLAIM_TYPES,
+            max_escalation_fraction=1.0,
+            escalate_on_warnings=True,
+        ),
+        merge_policy="schema_grounded_confidence_priority_v0.1",
+    )
+
+
+def _print_pipeline_success(final_dir: Path, run_name: str) -> None:
+    console.print("\n[bold green]Pipeline complete — trained model checkpoints ready.[/bold green]")
+    console.print(f"  Run dir: {final_dir}")
+    console.print(f"  Model checkpoints: {final_dir}/arms/*/checkpoints/latest.pt")
+    console.print(f"  Verdict report: {final_dir}/verdict/report.md")
+    console.print(
+        f"  Repro export: axiom run export {final_dir} --output artifacts/{run_name}-repro.json"
+    )
 
 
 @app.command("build-substrate")
@@ -871,6 +1205,386 @@ def run_list_command(
     except Exception as exc:
         raise typer.BadParameter(str(exc)) from exc
     _print_payload(payload, json_output=json_output, title="Axiom P6 Runs")
+
+
+@run_app.callback(invoke_without_command=True)
+def run_root(ctx: typer.Context) -> None:
+    """P6 operator run inspection/export commands.
+
+    Bare 'axiom run' (no subcommand) launches the interactive guided full-pipeline trainer.
+    It starts at corpus ingress (prompts only for required values: sources dir, optional
+    provider base URL + API key when chosen, run name) and drives the complete chain
+    (no reductions): provider-aware corpus -> full AXT (neighborhoods, negatives, geometry
+    slots, provider context, masks, all targets) -> AXP/AXT -> full experiment suite using
+    the complete P6 arm catalog (text baselines + structured-native no-geo + geo
+    + ablation/control arms) + scoring + verdict + reproducibility artifacts.
+
+    All other configuration uses complete smoke-scale defaults from the P6 handoff. The
+    resulting runs/<name>/ contains trained checkpoints (latest.pt per arm) and is fully
+    compatible with 'axiom run inspect' etc.
+    """
+    if ctx.invoked_subcommand is None:
+        _run_interactive_training_pipeline()
+
+
+def _run_interactive_training_pipeline() -> None:
+    """Collect minimal required prompts then drive the full unreduced pipeline."""
+    console.print("[bold cyan]Axiom Interactive Full Pipeline[/bold cyan]")
+    console.print(
+        "Guides from corpus ingress (OpenAI-compat IP+key optional) to finished\n"
+        "trained checkpoints. Enter accepts defaults. Only prompted for values\n"
+        "that must be set (no safe default)."
+    )
+
+    default_sources = Path("examples/corpus/ml_software_benchmarks/sources")
+    sources_str = typer.prompt(
+        "Source documents directory for corpus ingress",
+        default=str(default_sources),
+    )
+    sources_path = Path(sources_str).resolve()
+    if not sources_path.exists():
+        console.print(f"[red]Source path does not exist: {sources_path}[/red]")
+        raise typer.Exit(1)
+
+    cutoff_str = typer.prompt("Temporal cutoff date (YYYY-MM-DD)", default="2026-01-01")
+    cutoff = _parse_cutoff_date(cutoff_str)
+
+    providers = _prompt_provider_ingress_config()
+
+    run_name = typer.prompt("Training run name (required; output under runs/<name>)").strip()
+    if not run_name:
+        console.print("[red]Run name is required and cannot be empty.[/red]")
+        raise typer.Exit(1)
+    if any(ch in run_name for ch in '\\/:*?"<>|'):
+        console.print("[yellow]Warning: run name contains filesystem-unsafe characters.[/yellow]")
+
+    ready = typer.confirm(
+        f"Run FULL unreduced pipeline for '{run_name}' "
+        f"({'provider' if providers else 'deterministic'})?\n"
+        "  - corpus build (full claim-field, traces, negatives, gold hooks)\n"
+        "  - AXT compile (all tensor groups, masks, neighborhoods, geometry slots,\n"
+        "    provider ctx)\n"
+        "  - experiment (complete arm set: text baselines + structured + learned\n"
+        "    geometry + controls)\n"
+        "  - scoring + verdict + manifests + repro bundle\n"
+        "All first-class must-haves and ablations preserved. Smoke-scale for speed.",
+        default=True,
+    )
+    if not ready:
+        console.print("Aborted by user.")
+        raise typer.Exit(0)
+
+    try:
+        final_dir = _execute_full_pipeline(
+            run_name=run_name,
+            sources_dir=sources_path,
+            cutoff=cutoff,
+            providers=providers,
+        )
+        console.print(
+            "\n[bold green]Pipeline complete — trained model checkpoints ready.[/bold green]"
+        )
+        console.print(f"  Run dir: {final_dir}")
+        console.print(
+            f"  Model checkpoints: {final_dir}/arms/*/checkpoints/latest.pt (and step_*.pt)"
+        )
+        console.print(f"  Verdict report: {final_dir}/verdict/report.md")
+        console.print("\nInspect / export with the operator surface:")
+        console.print(f"  ./bin/axiom run inspect {final_dir}")
+        console.print(
+            f"  ./bin/axiom run export {final_dir} --output artifacts/{run_name}-repro.json"
+        )
+    except Exception as exc:
+        console.print(f"[red]Pipeline failed:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
+def _prompt_provider_ingress_config() -> ProviderIngressConfig | None:
+    use_provider = typer.confirm(
+        "Use OpenAI-compatible provider for extraction (supply base URL + API key)?\n"
+        "  No = deterministic bootstrap (no key, fully offline, cached-safe).",
+        default=False,
+    )
+    if not use_provider:
+        return None
+
+    base_url = typer.prompt(
+        "Provider base URL (e.g. http://localhost:8000/v1 or remote OpenAI-compat)",
+        default="http://localhost:8000/v1",
+    )
+    provider_mode = typer.prompt(
+        "Provider mode (local or remote)",
+        default="local",
+    ).strip()
+    if provider_mode not in {"local", "remote"}:
+        console.print("[red]Provider mode must be 'local' or 'remote'.[/red]")
+        raise typer.Exit(1)
+    model = typer.prompt("Extraction model name", default="local-extractor-model")
+    api_key = typer.prompt("Provider API Key (hidden)", hide_input=True).strip()
+    if not api_key:
+        console.print("[red]API key required for provider mode.[/red]")
+        raise typer.Exit(1)
+    env_name = typer.prompt(
+        "Env var name to hold the key (set in-process only, never written to files)",
+        default="AXIOM_PROVIDER_API_KEY",
+    )
+    os.environ[env_name] = api_key
+    primary = ProviderEndpointConfig(
+        provider_id="interactive_openai_compatible",
+        type="openai_compatible",
+        provider_family="openai_compatible",
+        provider_mode=provider_mode,
+        model=model,
+        base_url=base_url,
+        api_key_env=env_name,
+        dry_run=False,
+    )
+    console.print(f"[green]Provider active (key held in ${env_name} for this run only).[/green]")
+    return ProviderIngressConfig(
+        primary=primary,
+        escalation=None,
+        cascade=ProviderCascadeConfig(enabled=False),
+        cache=ProviderCacheConfig(
+            root_path=Path(".cache/axiom/providers").resolve(),
+            mode="live",
+        ),
+    )
+
+
+def _execute_full_pipeline(
+    run_name: str,
+    sources_dir: Path,
+    cutoff: date | None,
+    providers: ProviderIngressConfig | None,
+    *,
+    arms: list[str] | None = None,
+    trainer_template: TrainingConfig | None = None,
+    output_root: Path = Path("runs"),
+) -> Path:
+    """Execute the corpus->AXT->full experiment pipeline. Snapshots all generated configs.
+
+    Test callers may pass arms= reduced list and a tiny trainer_template to keep pytest fast.
+    The interactive path always uses the complete P6 arm catalog + smoke hyperparams.
+    """
+    run_dir, wizard_dir = _prepare_full_pipeline_run(run_name, output_root)
+    corpus_result = _build_full_pipeline_corpus(
+        run_name=run_name,
+        sources_dir=sources_dir,
+        cutoff=cutoff,
+        providers=providers,
+        run_dir=run_dir,
+        wizard_dir=wizard_dir,
+    )
+    return _execute_full_pipeline_after_corpus(
+        run_name=run_name,
+        corpus_result=corpus_result,
+        trainer_template=trainer_template,
+        output_root=output_root,
+        run_dir=run_dir,
+        wizard_dir=wizard_dir,
+        arms=arms,
+    )
+
+
+def _prepare_full_pipeline_run(
+    run_name: str,
+    output_root: Path,
+) -> tuple[Path, Path]:
+    run_dir = output_root / run_name
+    run_dir.mkdir(parents=True, exist_ok=True)
+    wizard_dir = run_dir / "wizard_configs"
+    wizard_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir, wizard_dir
+
+
+def _build_full_pipeline_corpus(
+    *,
+    run_name: str,
+    sources_dir: Path,
+    cutoff: date | None,
+    providers: ProviderIngressConfig | None,
+    run_dir: Path,
+    wizard_dir: Path,
+) -> CorpusBuildResult:
+    # 1. Corpus
+    corpus_out = run_dir / "corpus"
+    corpus_out.mkdir(parents=True, exist_ok=True)
+    corpus_cfg = CorpusBuildConfig(
+        corpus_id=f"interactive.{run_name}.v0",
+        dataset_name=run_name,
+        input_path=sources_dir,
+        output_dir=corpus_out,
+        cutoff_date=cutoff,
+        providers=providers,
+        # defaults for chunking, threshold, strict temporal, no pdf
+    )
+    corpus_cfg.to_yaml(wizard_dir / "corpus.yaml")
+    if providers is not None:
+        _write_yaml(wizard_dir / "providers.yaml", {"providers": providers.model_dump(mode="json")})
+
+    console.print("[bold]Phase 1/3: Corpus ingress & build[/bold]")
+    corpus_result = build_corpus(corpus_cfg)
+    console.print(
+        f"  Sources: {corpus_result.manifest.source_count}  "
+        f"Capsules: {corpus_result.manifest.capsule_count}  "
+        f"AXP: {corpus_result.package_path}"
+    )
+    return corpus_result
+
+
+def _execute_full_pipeline_after_corpus(
+    *,
+    run_name: str,
+    corpus_result: CorpusBuildResult,
+    trainer_template: TrainingConfig | None,
+    output_root: Path,
+    run_dir: Path,
+    wizard_dir: Path,
+    arms: list[str] | None = None,
+) -> Path:
+    # 2. AXT (explicit for control; full include flags)
+    axt_path = run_dir / "axt" / f"{run_name}.axt"
+    axt_cfg = AxtCompileConfig(
+        input_path=corpus_result.package_path,
+        output_path=axt_path,
+        allow_all_without_split=True,
+        max_text_length=128,
+        include_provider_context=True,
+        include_relation_neighborhoods=True,
+        include_negative_samples=True,
+        include_geometry_slots=True,
+        include_evaluation_references=False,
+        strict_temporal_masks=True,
+        strict_schema_validation=True,
+        hash_artifacts=True,
+        seed=13,
+    )
+    axt_cfg.write_json(wizard_dir / "axt_compile.json")
+
+    console.print("[bold]Phase 2/3: AXT compile (full tensor interface)[/bold]")
+    axt_res = compile_axt(axt_cfg, force=True)
+    console.print(f"  Records: {axt_res.manifest.record_count}  Bundle: {axt_path}")
+
+    # 3. Experiment (unreduced arm catalog + smoke hyperparams)
+    console.print("[bold]Phase 3/3: Experiment orchestration + training + scoring + verdict[/bold]")
+    tmpl = trainer_template if trainer_template is not None else _default_smoke_trainer_template()
+    use_arms = list(arms) if arms is not None else _full_p6_arm_ids()
+
+    suite = ExperimentSuiteConfig(
+        suite_name=run_name,
+        input_axp=None,
+        input_axt=axt_path,
+        output_dir=output_root,
+        arms=use_arms,
+        seeds=[13],
+        budget_profile="smoke",
+        trainer_config_template=tmpl,
+        model_config_template=Path("configs/model/structured_native_smoke.yaml"),
+        geometry_config_template=Path("configs/geometry/geometry_learned_smoke.yaml"),
+        scoring_config=Path("configs/scoring/default_structured_scoring.yaml"),
+        verdict_config=Path("configs/verdict/conservative_thresholds.yaml"),
+        source_content_id=run_name,
+        split_id="all_without_split",
+    )
+    suite.to_yaml(wizard_dir / "suite.yaml")
+
+    orchestrator = ExperimentOrchestrator(suite)
+    exp_res = orchestrator.run()
+    return exp_res.run_dir
+
+
+def _write_yaml(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if hasattr(data, "model_dump"):
+        payload: dict[str, Any] = data.model_dump(mode="json")
+    else:
+        payload = data
+    path.write_text(yaml.safe_dump(payload, sort_keys=True), encoding="utf-8")
+
+
+def _full_p6_arm_ids() -> list[str]:
+    """Return the complete default P6 experiment arm set."""
+    return list(
+        default_arm_catalog(
+            input_axt_path="",
+            model_config="",
+            source_content_id="interactive",
+            seed=13,
+        ).keys()
+    )
+
+
+def _default_smoke_trainer_template() -> TrainingConfig:
+    """Full smoke-scale TrainingConfig (hyperparams, weights, curriculum, budget).
+
+    No reductions from the P6 smoke defaults.
+    """
+    loss_w = LossWeights(
+        structured_axc_out=1.0,
+        relation_prediction=1.0,
+        provenance_recovery=1.0,
+        epistemic_proxy=1.0,
+        stability_temporal=1.0,
+        uncertainty_calibration=0.5,
+        geometry_observables=0.2,
+        geometry_regularization=0.01,
+        text_projection=0.2,
+    )
+    curric = CurriculumConfig(
+        schedule_name="none",
+        phase_boundaries=[0, 1, 1, 1, 1, 2],
+        text_projection_weight_schedule=[1.0],
+        structured_loss_weight_schedule=[1.0],
+        relation_neighborhood_depth_schedule=[1],
+        side_channel_dropout_schedule=[0.0],
+        geometry_activation_schedule=[1.0],
+        context_dropout_schedule=[0.0],
+        negative_sample_hardness_schedule=[0.0],
+    )
+    budget = ComputeBudgetConfig(
+        max_train_steps=2,
+        max_records_seen=24,
+        max_wall_clock_seconds=300.0,
+        parameter_match_tolerance=0.25,
+        compute_match_tolerance=0.25,
+        estimate_flops=True,
+    )
+    return TrainingConfig(
+        run_name="placeholder",
+        seed=13,
+        input_axt_path=Path("placeholder.axt"),
+        output_dir=Path("runs"),
+        model_config_path=Path("configs/model/structured_native_smoke.yaml"),
+        arm_name="placeholder",
+        max_steps=2,
+        max_epochs=1,
+        global_batch_size=2,
+        micro_batch_size=2,
+        gradient_accumulation_steps=1,
+        learning_rate=0.001,
+        weight_decay=0.0,
+        optimizer="adamw",
+        scheduler="none",
+        warmup_steps=0,
+        cooldown_steps=0,
+        clip_grad_norm=1.0,
+        precision="fp32",
+        checkpoint_interval=1,
+        eval_interval=1,
+        log_interval=1,
+        save_optimizer_state=True,
+        resume_from=None,
+        text_projection_loss_weight=0.2,
+        geometry_loss_weight=0.2,
+        structured_loss_weights=loss_w,
+        curriculum_config=curric,
+        compute_budget_config=budget,
+        geometry_config_path=Path("configs/geometry/geometry_learned_smoke.yaml"),
+        geometry_provider_kind="learned",
+        control_transform=None,
+        text_mode=None,
+        overwrite=True,
+    )
 
 
 @format_app.command("validate")
