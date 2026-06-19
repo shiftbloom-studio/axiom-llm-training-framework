@@ -1,0 +1,27 @@
+#!/bin/sh
+# bin/axiom — portable launcher for the Axiom CLI using uv (no activation or PYTHONPATH required).
+#
+# From inside the project (or anywhere if you add the bin/ dir to your PATH):
+#   ./bin/axiom --help
+#   ./bin/axiom axt compile --input ... --output ...
+#
+# Works in bash, zsh, fish, etc.
+# After the one-time `uv sync --python 3.14 --extra dev` + reinstall-package,
+# this (or the global fish setup) gives you the `axiom` command that feels native.
+
+set -e
+
+# Robust project dir resolution that survives symlinks (important if you symlink
+# this script into ~/.local/bin or similar for a "global" feel).
+script="$0"
+while [ -L "$script" ]; do
+  script_dir=$(cd -P "$(dirname "$script")" 2>/dev/null && pwd)
+  target=$(readlink "$script" 2>/dev/null || readlink -f "$script" 2>/dev/null || echo "$script")
+  case "$target" in
+    /*) script="$target" ;;
+    *)  script="$script_dir/$target" ;;
+  esac
+done
+project_dir=$(cd -P "$(dirname "$script")/.." && pwd)
+
+exec uv run --project "$project_dir" axiom "$@"
