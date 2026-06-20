@@ -28,7 +28,8 @@ BYTES_PER_UNIT = 1024.0
 class LlamaServerConfig:
     """Settings needed to launch a local llama-server OpenAI-compatible endpoint."""
 
-    hf_repo: str
+    hf_repo: str | None = None
+    local_gguf_path: Path | str | None = None
     host: str = "127.0.0.1"
     port: int | None = None
     api_key: str | None = None
@@ -58,7 +59,9 @@ class LlamaServerHandle:
 
     @property
     def model_name(self) -> str:
-        return self.config.hf_repo
+        if self.config.local_gguf_path:
+            return Path(self.config.local_gguf_path).name
+        return self.config.hf_repo or "local-gguf"
 
 
 class HuggingFaceGgufValidationError(ValueError):
@@ -67,10 +70,19 @@ class HuggingFaceGgufValidationError(ValueError):
 
 @contextmanager
 def start_llama_server(config: LlamaServerConfig) -> Iterator[LlamaServerHandle]:
-    """Start llama-server and stop it when the context exits."""
+    """Start llama-server and stop it when the context exits.
+    Supports either hf_repo (auto-download via --hf-repo) or local_gguf_path (-m local file).
+    """
 
     executable = _resolve_executable(config.executable)
-    validate_hf_repo_has_gguf(config.hf_repo)
+    if config.local_gguf_path:
+        p = Path(config.local_gguf_path).expanduser().resolve()
+        if not p.is_file():
+            raise FileNotFoundError(f"Local GGUF not found: {p}")
+    elif config.hf_repo:
+        validate_hf_repo_has_gguf(config.hf_repo)
+    else:
+        raise ValueError("LlamaServerConfig requires either hf_repo or local_gguf_path")
     port = config.port or find_free_tcp_port(config.host)
     api_key = config.api_key or secrets.token_urlsafe(24)
     log_path = config.log_path or Path(".cache/axiom/llama-server") / f"server-{port}.log"
@@ -227,12 +239,7 @@ def _server_command(
     api_key: str,
     log_path: Path,
 ) -> list[str]:
-    return [
-        executable,
-        "--hf-repo",
-        config.hf_repo,
-        "--alias",
-        config.hf_repo,
+    common = [
         "--host",
         config.host,
         "--port",
@@ -249,6 +256,13 @@ def _server_command(
         "--log-file",
         str(log_path),
     ]
+    if config.local_gguf_path:
+        p = Path(config.local_gguf_path)
+        alias = p.name
+        return [executable, "-m", str(p), "--alias", alias, *common]
+    # hf path
+    repo = config.hf_repo or ""
+    return [executable, "--hf-repo", repo, "--alias", repo, *common]
 
 
 def _wait_until_ready(handle: LlamaServerHandle) -> None:
@@ -277,7 +291,10 @@ def _wait_until_ready(handle: LlamaServerHandle) -> None:
             now = time.monotonic()
             if handle.config.status_callback is not None and now >= next_status:
                 elapsed = _format_duration(now - started)
-                status = _hf_cache_status(hf_model_id(handle.config.hf_repo))
+                mid = hf_model_id(handle.config.hf_repo) if handle.config.hf_repo else None
+                status = (
+                    _hf_cache_status(mid) if mid else f"local GGUF: {handle.config.local_gguf_path}"
+                )
                 handle.config.status_callback(
                     f"llama-server still starting after {elapsed}; last probe: "
                     f"{last_error}; {status}; log: {handle.log_path}"
@@ -285,7 +302,8 @@ def _wait_until_ready(handle: LlamaServerHandle) -> None:
                 next_status = now + handle.config.startup_status_interval_seconds
             time.sleep(1.0)
     tail = _tail_text(handle.log_path)
-    status = _hf_cache_status(hf_model_id(handle.config.hf_repo))
+    mid = hf_model_id(handle.config.hf_repo) if handle.config.hf_repo else None
+    status = _hf_cache_status(mid) if mid else f"local GGUF: {handle.config.local_gguf_path}"
     msg = (
         f"llama-server did not become ready after "
         f"{_format_duration(handle.config.startup_timeout_seconds)}: {last_error}. "
@@ -360,3 +378,100 @@ def _format_duration(seconds: float) -> str:
     if mins:
         return f"{mins}m {secs}s"
     return f"{secs}s"
+
+
+# --------------------------------------------------------------------------------------
+# Discovery for WebUI: automatic recognition of cached/installed GGUF models
+# (used by integrated local P1 extraction without remote)
+# --------------------------------------------------------------------------------------
+
+
+def list_cached_gguf_models() -> list[dict[str, Any]]:
+    """Scan HF hub cache and common local directories for .gguf files.
+    Returns list suitable for UI model picker. Supports 'auto download' awareness.
+    """
+    results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    # HF cache (re-uses the cache dir logic)
+    try:
+        hf_home = os.environ.get("HF_HOME") or str(Path.home() / ".cache" / "huggingface")
+        hub_root = Path(hf_home) / "hub"
+        if hub_root.exists():
+            for model_dir in sorted(hub_root.glob("models--*")):
+                repo = model_dir.name.replace("models--", "").replace("--", "/")
+                for gguf in sorted(model_dir.rglob("*.gguf")):
+                    p = str(gguf)
+                    if p in seen:
+                        continue
+                    seen.add(p)
+                    size = gguf.stat().st_size
+                    results.append(
+                        {
+                            "type": "hf",
+                            "repo": repo,
+                            "path": p,
+                            "size_bytes": size,
+                            "display": f"{repo} ({gguf.name}, {_format_bytes(size)})",
+                            "cached": True,
+                            "hf_repo": f"{repo}:{_infer_quant(gguf.name)}"
+                            if ":" not in repo
+                            else repo,
+                        }
+                    )
+    except Exception:
+        pass
+
+    # Common local GGUF locations (user installed)
+    for base in [
+        Path.home() / "models",
+        Path.home() / "gguf",
+        Path.home() / ".cache" / "gguf",
+        Path.cwd() / "models",
+        Path.cwd() / "gguf",
+        Path("/opt/llama/models"),
+        Path("/opt/homebrew/var/llama/models"),
+    ]:
+        try:
+            if base.exists():
+                for gguf in sorted(base.rglob("*.gguf")):
+                    p = str(gguf)
+                    if p in seen:
+                        continue
+                    seen.add(p)
+                    size = gguf.stat().st_size
+                    results.append(
+                        {
+                            "type": "local",
+                            "repo": None,
+                            "path": p,
+                            "size_bytes": size,
+                            "display": f"local:{gguf.name} ({_format_bytes(size)})",
+                            "cached": True,
+                            "local_gguf_path": p,
+                        }
+                    )
+        except Exception:
+            pass
+
+    return results
+
+
+def _infer_quant(name: str) -> str:
+    n = name.lower()
+    for q in ("q4_k_m", "q5_k_m", "q4_0", "q5_0", "q8_0", "q3_k_m", "f16"):
+        if q in n:
+            return q.upper()
+    return "Q4_K_M"  # common default
+
+
+def get_suggested_gguf_models() -> list[str]:
+    """Popular small-to-medium GGUF repos good for local extraction (claim/epistemic tasks)."""
+    return [
+        "Qwen/Qwen2.5-3B-Instruct-GGUF",
+        "Qwen/Qwen2.5-7B-Instruct-GGUF",
+        "unsloth/Llama-3.2-3B-Instruct-GGUF",
+        "TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
+        "TheBloke/phi-2-GGUF",
+        "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
+    ]

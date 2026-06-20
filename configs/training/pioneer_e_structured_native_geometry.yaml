@@ -1,0 +1,152 @@
+# =============================================================================
+# PIONEER RUN — ARM E ONLY  (structured-native + LEARNED GEOMETRY)
+# =============================================================================
+# This trains the ambitious hypothesis as a single standalone arm. No baselines,
+# no controls, no verdict. Run it with:
+#
+#     ./bin/axiom train run configs/training/pioneer_e_structured_native_geometry.yaml
+#
+# THE ONE RULE: the lines marked [GUARDRAIL] are what make this arm E and not the
+# simpler arm D. If any guardrail is wrong, geometry is silently dropped and you
+# train D while thinking you trained E. Everything else is safe to tune.
+#
+# NOTE ON WHAT BOUNDS A RUN: in a single-arm run the trainer loop stops ONLY at
+# `max_steps`. `max_wall_clock_seconds` and `max_records_seen` are NOT enforced
+# here — there is no time cap. So training length = how much data x how many
+# passes, exactly as intended. See "PRIMARY KNOB" and "RUN LENGTH" below.
+# =============================================================================
+
+run_name: pioneer_e_structured_native_geometry
+seed: 13
+
+# >>> PRIMARY KNOB — HOW MUCH DATA ============================================
+# This is the lever that drives everything. It points at ONE compiled AXT bundle.
+# "How much data is scraped/used" is decided in two upstream places, then frozen
+# into this bundle:
+#   1. corpus build  -> how many source documents become claims
+#   2. axt compile   -> packs those claims into this .axt bundle
+# Point this at YOUR compiled bundle (not the demo fixture):
+input_axt_path: artifacts/axt/pioneer.axt
+# Check how many records it holds:  ./bin/axiom axt inspect artifacts/axt/pioneer.axt
+# ============================================================================
+
+output_dir: runs
+
+# [GUARDRAIL] THE REAL ON-SWITCH for the hypothesis. The model config must set
+# geometry.mode: geometry_provider_injected (enabled: true, geometry_off: false),
+# or the learned transport module is built but NEVER CALLED. Note: research_tiny
+# uses geometry_features_from_axt (a plain projector, NOT the learned module);
+# smoke/small are geometry_off. Only the file below is wired to the real geometry.
+# (The experiment suite rewrites this per-arm; a standalone `train run` does not,
+# so for a solo E run you MUST use an injected-mode model config like this one.)
+model_config_path: configs/model/structured_native_research_geometry.yaml
+
+# [GUARDRAIL] Identity of the arm. Keep as the geometry arm.
+arm_name: E_structured_native_geometry
+
+train_split: null
+validation_split: null
+
+# >>> RUN LENGTH — DATA-DRIVEN, NOT TIME-DRIVEN ==============================
+# One "pass" over your data = ceil(record_count / micro_batch_size) steps.
+# Set max_steps = passes * steps_per_epoch. Example: 2000 records, micro_batch 8
+#   -> 250 steps/pass -> 30 passes = 7500 steps.
+# Pick enough passes that the loss flattens (see RUN LENGTH note at bottom).
+# This is your "train until it stops improving" dial — raise it, watch the loss,
+# and `axiom train resume` if it hasn't plateaued yet.
+max_steps: 7500
+max_epochs: 1000          # intentionally high; max_steps is the real bound
+# ============================================================================
+
+# Batch. micro_batch_size IS the effective batch in this trainer (accumulation is
+# nominal here), so keep global == micro to avoid a false sense of accumulation.
+global_batch_size: 8
+micro_batch_size: 8
+gradient_accumulation_steps: 1
+
+# Optimization. Conservative + stable for the geometry transport operator.
+learning_rate: 0.0003
+weight_decay: 0.01
+optimizer: adamw
+scheduler: linear_warmup_decay
+warmup_steps: 100         # warmup matters: matrix_exp transport is unstable cold
+cooldown_steps: 0
+clip_grad_norm: 1.0       # keep — guards against geometry gradient spikes
+
+# precision: fp32 for the first geometry runs. The learned transport uses
+# matrix_exp / linalg.solve, which are numerically fragile in bf16 and are NOT
+# yet guarded by an autocast-disable region. Move to bf16 only AFTER wrapping the
+# geometry linalg in torch.autocast(enabled=False)+.float(). fp32 also matches
+# every other shipped config.
+precision: fp32
+
+checkpoint_interval: 250  # checkpoints enable resume-to-extend (see bottom)
+eval_interval: 100        # writes validation_log.jsonl — your convergence signal
+log_interval: 10
+save_optimizer_state: true
+resume_from: null
+
+# Loss family weights. Text projection stays mandatory but secondary.
+text_projection_loss_weight: 0.2
+# [GUARDRAIL] geometry_loss_weight > 0 is what makes geometry contribute to the
+# loss at all. The config validator mirrors this into structured_loss_weights
+# .geometry_observables below. If this is 0, geometry trains blind / inert.
+geometry_loss_weight: 0.2
+
+# [GUARDRAIL] control_transform MUST be null. Any value (no_provenance,
+# context_shuffle, ...) turns this into a CONTROL arm, not E.
+control_transform: null
+# [GUARDRAIL] text_mode MUST be null = native structured input. Setting flat_text
+# / structured_text / capsule_text downgrades this to a text baseline (A/B/C).
+text_mode: null
+
+# [GUARDRAIL] These two BUILD the learned provider; the model config above is
+# what CALLS it. BOTH are required: geometry_config_path + geometry_provider_kind
+# = learned (here) AND geometry.mode: geometry_provider_injected (model config).
+# If the model mode is anything else, this provider is built and silently ignored
+# (the exact way E quietly degrades into D). Raise fiber_dim / geometry_feature_dim
+# in the geometry file for more capacity.
+geometry_config_path: configs/geometry/geometry_learned_pioneer.yaml
+geometry_provider_kind: learned
+
+overwrite: false
+
+structured_loss_weights:
+  structured_axc_out: 1.0
+  relation_prediction: 1.0
+  provenance_recovery: 1.0
+  epistemic_proxy: 1.0
+  stability_temporal: 1.0
+  uncertainty_calibration: 0.5
+  geometry_observables: 0.2      # [GUARDRAIL] keep > 0 (mirrors geometry_loss_weight)
+  geometry_regularization: 0.01  # [GUARDRAIL] keep > 0 — stabilizes the geometry
+  text_projection: 0.2
+
+# CURRICULUM: kept OFF on purpose.
+# In the current trainer the curriculum only scales the TOTAL loss by the
+# 'structured' factor; the geometry/relation "ramp-in" schedules are NOT wired
+# into the loss. So a ramp here would not gently introduce geometry — at best it
+# does nothing, at worst (linear_complexity_ramp) it globally down-weights the
+# whole loss early. `none` keeps geometry at full, honest weight from step 0,
+# which is the safest choice for not losing the hypothesis.
+curriculum_config:
+  schedule_name: none
+  phase_boundaries: [0, 10, 25, 50, 75, 100]
+  text_projection_weight_schedule: [1.0]
+  structured_loss_weight_schedule: [1.0]
+  relation_neighborhood_depth_schedule: [1, 2, 4]
+  side_channel_dropout_schedule: [0.0]
+  geometry_activation_schedule: [1.0]
+  context_dropout_schedule: [0.0]
+  negative_sample_hardness_schedule: [0.0]
+
+# Budget block: kept for manifest/repro only. These are NOT enforced by the
+# single-arm trainer (no time cap, no record cap). Left uncapped on purpose so
+# nothing silently truncates the run — max_steps above is the only real bound.
+compute_budget_config:
+  max_train_steps: 7500          # mirror max_steps (reporting only)
+  max_records_seen: null         # null = no data-count cap
+  max_wall_clock_seconds: null   # null = NO time cap (data/convergence driven)
+  parameter_match_tolerance: 0.05
+  compute_match_tolerance: 0.10
+  estimate_flops: true

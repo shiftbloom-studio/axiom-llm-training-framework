@@ -1,0 +1,55 @@
+# Research-tiny model stack WITH the learned in-model geometry actually switched on.
+#
+# WHY THIS FILE EXISTS: the only thing that makes the model call the learned
+# transport module (matrix_exp / holonomy, src/hcaps/geometry/module.py) is
+#     geometry.mode == geometry_provider_injected   (+ enabled: true, geometry_off: false)
+# See AxiomModelConfig.effective_geometry_mode(): with geometry_off or
+# enabled:false it returns "geometry_off" (NullProvider), and with
+# "geometry_features_from_axt" it uses a plain feature projector — NEITHER runs
+# the learned geometry. structured_native_research_tiny.yaml uses
+# geometry_features_from_axt, so it does NOT exercise the hypothesis on a
+# standalone `axiom train run`. This file is the one that does.
+
+model:
+  model_dim: 256
+  slot_dim: 256
+  num_layers: 6
+  num_heads: 8
+  dropout: 0.1
+  activation: gelu
+  parameter_budget_hint: v1_tiny_research_geometry
+
+inputs:
+  max_claim_slots: 64
+  max_relation_neighbors: 16
+  max_provenance_sources: 16
+  max_negative_samples: 16
+  max_text_length: 192
+  text_vocab_size: 8192
+  categorical_vocab_size: 4096
+  numeric_feature_count: 32
+  geometry_observable_dim: 8
+
+router:
+  enabled: true
+  mode: head_gate
+
+geometry:
+  enabled: true                     # -> use_geometry_features = True
+  mode: geometry_provider_injected  # -> THE on-switch for the LEARNED transport module
+
+outputs:
+  text_projection: true
+  axc_out: true
+
+ablations:
+  text_only: false
+  structure_only_no_text_projection: false
+  no_provenance: false
+  no_relations: false
+  no_context: false
+  no_provider_context: false
+  no_side_channels: false
+  geometry_off: false               # -> must stay false or effective mode = geometry_off
+  router_off: false
+  relation_neighborhood_off: false

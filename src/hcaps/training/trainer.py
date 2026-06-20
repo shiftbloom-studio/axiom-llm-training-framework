@@ -64,6 +64,7 @@ class AxiomTrainer:
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         set_global_seed(config.seed)
         self.model_config = AxiomModelConfig.from_yaml(config.model_config_path)
+        self._assert_geometry_intent_realized()
         self.model = self._build_model().to(self.device)
         self.input_adapter = StructuredInputAdapter(self.model_config, device=self.device)
         self.loss_registry = loss_registry or build_default_loss_registry(
@@ -231,6 +232,45 @@ class AxiomTrainer:
                     model_dim=self.model_config.model_dim,
                 )
         return AxiomStructuredModel(self.model_config, geometry_provider=geometry_provider)
+
+    def _assert_geometry_intent_realized(self) -> None:
+        """Fail loudly when geometry is configured but would not actually run.
+
+        The training config only BUILDS a geometry provider; the model config's
+        effective_geometry_mode is what CALLS it. If they disagree, arm E would
+        silently train as arm D (no geometry). Raise instead of degrading.
+        """
+        provider_supplied = (
+            self.config.geometry_provider_kind != "none"
+            and self.config.geometry_config_path is not None
+        )
+        wants_learned = (
+            self.config.geometry_provider_kind == "learned"
+            and self.config.geometry_config_path is not None
+        )
+        effective_mode = self.model_config.effective_geometry_mode()
+        injected = effective_mode == "geometry_provider_injected"
+        if wants_learned and not injected:
+            raise ValueError(
+                "Geometry misconfiguration: training config requests learned geometry "
+                "(geometry_provider_kind='learned', geometry_config_path="
+                f"'{self.config.geometry_config_path}') but model config "
+                f"'{self.config.model_config_path}' resolves to effective_geometry_mode="
+                f"'{effective_mode}'. The learned transport module would be built but never "
+                "called -- arm E would silently degrade to arm D. Set the model config "
+                "geometry.mode='geometry_provider_injected' (enabled: true, "
+                "ablations.geometry_off: false)."
+            )
+        if injected and not provider_supplied:
+            raise ValueError(
+                "Geometry misconfiguration: model config "
+                f"'{self.config.model_config_path}' resolves to effective_geometry_mode="
+                "'geometry_provider_injected' but the training config supplies no provider to "
+                f"inject (geometry_provider_kind='{self.config.geometry_provider_kind}', "
+                f"geometry_config_path='{self.config.geometry_config_path}'). Set "
+                "geometry_provider_kind to 'learned' (or 'non_geometric_context_mixer') and a "
+                "geometry_config_path."
+            )
 
     def _prepare_directories(self) -> None:
         arm_dir = self.config.arm_dir()

@@ -19,3 +19,7 @@ uv.lock.tmp
 !/data/gold/README.md
 /artifacts/
 /runs/
+
+# UI runtime / preview caches
+/ui/.ui-data/
+/ui/.runs-cache/
