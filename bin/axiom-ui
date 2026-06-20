@@ -1,0 +1,50 @@
+#!/bin/sh
+# bin/axiom-ui — portable launcher for the optional Axiom fine-art web control surface.
+#
+# Usage (from anywhere after chmod +x):
+#   ./bin/axiom-ui
+#
+# It uses uv to bring in only the UI server deps on demand (no change to the
+# main project environment or pyproject.toml). The UI itself never modifies
+# core Axiom code — it only orchestrates public surfaces and observes artifacts.
+#
+# The web UI is an additional optional application for setup, configuration,
+# data-volume control (especially the local/remote LLM cascade), and live
+# abstract progress visualization.
+
+set -e
+
+script="$0"
+while [ -L "$script" ]; do
+  script_dir=$(cd -P "$(dirname "$script")" 2>/dev/null && pwd)
+  target=$(readlink "$script" 2>/dev/null || readlink -f "$script" 2>/dev/null || echo "$script")
+  case "$target" in
+    /*) script="$target" ;;
+    *)  script="$script_dir/$target" ;;
+  esac
+done
+project_dir=$(cd -P "$(dirname "$script")/.." && pwd)
+
+cd "$project_dir"
+
+echo "Axiom UI: launching optional control surface (deps via uv, no core changes)..." >&2
+
+# Mirror the main bin/axiom python selection + path discipline.
+venv_python="$project_dir/.venv/bin/python"
+if [ ! -x "$venv_python" ]; then
+  echo "Axiom: ensuring local Python environment for consistency..." >&2
+  UV_PYTHON=3.14 uv sync --project "$project_dir" --extra dev >&2
+fi
+
+export PYTHONPATH="$project_dir:$project_dir/src${PYTHONPATH:+:$PYTHONPATH}"
+export UV_PYTHON=3.14
+
+# Run the UI server with on-demand deps only. This keeps the UI truly optional.
+exec uv --project "$project_dir" run \
+  --with fastapi \
+  --with 'uvicorn[standard]' \
+  --with jinja2 \
+  --with python-multipart \
+  --with 'watchfiles>=0.20' \
+  -- \
+  python -m ui.server "$@"

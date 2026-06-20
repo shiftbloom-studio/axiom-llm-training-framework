@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AXIOM — the white plane</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --paper: #ffffff;
+    --ink: #11110f;
+    --veil: #c5a46e;
+    --faint: rgba(197,164,110,0.08);
+    --line: #e6e2d9;
+    --eth: rgba(197,164,110,0.035);
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  }
+  .veil { transition: all 620ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .unfolded { max-height: 160px; opacity: 1; }
+  .folded { max-height: 0; opacity: 0; overflow: hidden; }
+  .synapse-title {
+    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: #a38c5c;
+    cursor: pointer; user-select: none; font-weight: 400;
+  }
+  .minimal-input {
+    background: transparent; border: none; border-bottom: 1px solid var(--line);
+    color: var(--ink); font-size: 12px; padding: 1px 0; outline: none; font-feature-settings: "tnum";
+  }
+  .minimal-input:focus { border-bottom-color: var(--veil); }
+  .poetic { font-family: Georgia, "Iowan Old Style", "Palatino", serif; font-size: 11px; line-height: 1.45; font-feature-settings: "liga" on; }
+  .plane-canvas { mix-blend-mode: normal; }
+  .whisper { font-size: 8px; color: #9a9280; letter-spacing: 0.18em; }
+  .primary-measure {
+    border: 1px solid var(--faint);
+    background: rgba(255,255,255,0.92);
+  }
+  .ethereal-ctrl {
+    font-size: 10px;
+  }
+  .scale-pill {
+    padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+    font-size: 9px; letter-spacing: 0.1em; transition: all 200ms ease; user-select: none;
+  }
+  .scale-pill.active { background: #11110f; color: #fff; border-color: #11110f; }
+  .scale-pill:hover:not(.active) { border-color: var(--veil); color: #5c523d; }
+  input[type="range"] {
+    accent-color: #c5a46e; height: 2px; background: #e6e2d9; border-radius: 999px; cursor: pointer;
+  }
+  .tiny { font-size: 9px; }
+  .godly { letter-spacing: -.3px; }
+</style>
+</head>
+<body class="min-h-screen text-[#11110f] selection:bg-[#c5a46e] selection:text-[#fff]">
+
+<!-- the endless white plane – whiter, higher abstraction, godly ethereal, mouse-reactive -->
+<div class="fixed inset-0" style="z-index:1;">
+  <canvas id="white-plane" class="w-full h-full plane-canvas" width="1400" height="920"></canvas>
+</div>
+
+<div class="relative z-10 max-w-[640px] mx-auto px-6 pt-10 pb-12" style="background: linear-gradient(to bottom, rgba(255,255,255,0.96) 0%, transparent 6%, transparent 94%, rgba(255,255,255,0.96) 100%);">
+
+  <!-- minimal header: less text -->
+  <div class="mb-6 text-center">
+    <div class="text-[9px] tracking-[4px] text-[#a38c5c]">AXIOM</div>
+    <div class="text-[42px] tracking-[-1.8px] font-light godly">white plane</div>
+  </div>
+
+  <!-- plane status + seeker (minimal, higher abstraction) -->
+  <div class="mb-6 text-center">
+    <div id="stage-poetry" class="poetic text-xs text-[#6b6557]">awaiting the measure</div>
+    <div id="elapsed" class="whisper mt-px"></div>
+    <div onclick="enlightenVision()" class="mt-1.5 text-[9px] cursor-pointer text-[#8a8270] hover:text-[#a38c5c]">seek</div>
+  </div>
+
+  <!-- PRIMARY MEASURE: less information, more interactive (ranges + pills), higher abstraction -->
+  <div class="primary-measure rounded-2xl p-4 mb-6">
+    <div class="text-[8px] tracking-[2px] text-[#a38c5c] mb-2">PRIMARY MEASURE</div>
+
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-x-4 gap-y-4 items-end">
+      <!-- harvest: interactive range + number -->
+      <div class="md:col-span-2">
+        <div class="whisper mb-1">harvest</div>
+        <div class="flex items-center gap-2">
+          <input id="max_sources" type="range" min="1" max="48" step="1" value="8" class="flex-1" oninput="syncNumFromRange(this,'max_sources_num');updateGodLikeFromPrimary()">
+          <input id="max_sources_num" type="number" value="8" class="minimal-input w-12" oninput="syncRangeFromNum(this,'max_sources');updateGodLikeFromPrimary()">
+        </div>
+        <label class="tiny flex items-center gap-1 mt-0.5 text-[#7a7366]">
+          <input id="use_full_sources" type="checkbox" onchange="updateGodLikeFromPrimary()"> full
+        </label>
+      </div>
+
+      <!-- cascade reach -->
+      <div class="md:col-span-2">
+        <div class="whisper mb-1">cascade reach</div>
+        <div class="flex items-center gap-2">
+          <input id="max_escalation_fraction" type="range" min="0" max="0.5" step="0.01" value="0.25" class="flex-1" oninput="syncNumFromRange(this,'esc_num',100);updateGodLikeFromPrimary()">
+          <input id="esc_num" type="number" step="0.01" value="0.25" class="minimal-input w-14" oninput="syncRangeFromNum(this,'max_escalation_fraction',100);updateGodLikeFromPrimary()">
+        </div>
+      </div>
+
+      <!-- scale / profile as interactive pills: higher level abstraction -->
+      <div class="md:col-span-1">
+        <div class="whisper mb-1">devotion</div>
+        <div class="flex flex-wrap gap-1" id="scale-pills">
+          <span class="scale-pill" data-profile="smoke" onclick="setProfile(this)">smoke</span>
+          <span class="scale-pill" data-profile="pilot" onclick="setProfile(this)">pilot</span>
+          <span class="scale-pill active" data-profile="standard" onclick="setProfile(this)">standard</span>
+          <span class="scale-pill" data-profile="large" onclick="setProfile(this)">large</span>
+          <span class="scale-pill" data-profile="custom" onclick="setProfile(this)">eternal</span>
+        </div>
+        <select id="profile" class="hidden" onchange="onProfileChange(); updateGodLikeFromPrimary()">
+          <option value="smoke">smoke</option><option value="pilot">pilot</option>
+          <option value="standard" selected>standard</option><option value="large">large</option>
+          <option value="custom">custom</option>
+        </select>
+      </div>
+
+      <!-- subtle custom devotion fields -->
+      <div class="md:col-span-5 grid grid-cols-3 gap-2 text-[10px] mt-1">
+        <div>
+          <div class="whisper">steps</div>
+          <input id="custom_max_steps" type="number" value="100" class="minimal-input w-full" oninput="updateGodLikeFromPrimary()">
+        </div>
+        <div>
+          <div class="whisper">records</div>
+          <input id="custom_max_records" type="number" value="2048" class="minimal-input w-full" oninput="updateGodLikeFromPrimary()">
+        </div>
+        <div>
+          <div class="whisper">wall s</div>
+          <input id="custom_wall_seconds" type="number" value="7200" class="minimal-input w-full" oninput="updateGodLikeFromPrimary()">
+        </div>
+      </div>
+    </div>
+
+    <!-- live ethereal bar, reacts instantly -->
+    <div id="god-measure-visual" class="mt-3 h-5 relative rounded overflow-hidden border border-[var(--faint)] bg-white/70">
+      <div id="god-data-bar" class="absolute h-full transition-all duration-500" style="background: linear-gradient(90deg, rgba(197,164,110,0.12), rgba(197,164,110,0.22)); width: 18%; left:0;"></div>
+      <div id="god-training-pulse" class="absolute h-full w-2 bg-[rgba(197,164,110,0.25)] transition-all" style="left:22%; animation: god-pulse 5.5s ease-in-out infinite;"></div>
+    </div>
+    <div class="whisper text-center mt-0.5">harvest feeds the field. devotion invests the geometry.</div>
+  </div>
+
+  <!-- three unfolds kept (essentials / advanced / veiled) but stripped to minimal controls, less text -->
+  <div class="mb-3">
+    <div onclick="toggleUnfold(1)" class="synapse-title flex items-center gap-2 mb-px">
+      <div class="flex-1 h-px bg-[var(--line)]"></div>
+      <div>ground</div>
+      <div class="flex-1 h-px bg-[var(--line)]"></div>
+    </div>
+    <div id="unfold-1" class="veil unfolded poetic">
+      <div class="flex gap-2">
+        <input id="input_path" value="examples/corpus/ml_software_benchmarks/sources" class="minimal-input flex-1 text-xs" placeholder="source">
+        <input id="cutoff_date" value="2026-01-01" class="minimal-input w-24 text-xs">
+      </div>
+
+      <!-- Web harvest for internet data collection (Firecrawl / Brave / etc) feeding P1 corpus -->
+      <div class="mt-2 text-[10px]">
+        <div class="whisper">or harvest internet sources (local P1 only, no remote LLM needed)</div>
+        <div class="flex gap-1 mt-1">
+          <input id="harvest_query" placeholder="ml software benchmarks 2025" class="minimal-input flex-1 text-xs" style="width:140px">
+          <button onclick="doHarvest('brave')" class="text-[10px] px-2 py-px border border-[var(--line)]">Brave</button>
+          <button onclick="doHarvest('firecrawl')" class="text-[10px] px-2 py-px border border-[var(--line)]">Firecrawl</button>
+          <button onclick="doHarvest('fetch')" class="text-[10px] px-2 py-px border border-[var(--line)]">Fetch URL</button>
+        </div>
+        <div id="harvest_results" class="text-[9px] mt-1 max-h-16 overflow-auto"></div>
+        <button onclick="applyHarvestToInput()" class="text-[9px] underline mt-0.5">Use harvested as sources</button>
+        <span class="whisper">(set FIRECRAWL_API_KEY / BRAVE_API_KEY in env for real calls)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <div onclick="toggleUnfold(2)" class="synapse-title flex items-center gap-2 mb-px">
+      <div class="flex-1 h-px bg-[var(--line)]"></div>
+      <div>flow</div>
+      <div class="flex-1 h-px bg-[var(--line)]"></div>
+    </div>
+    <div id="unfold-2" class="veil folded poetic text-xs">
+      <div class="flex gap-2">
+        <input id="primary_model" value="sonar-pro" class="minimal-input flex-1" placeholder="model">
+        <select id="geometry_preset" class="minimal-input flex-1 text-xs"></select>
+      </div>
+
+      <!-- Extraction model for integrated local P1 (auto detect installed/cached GGUF, auto download on launch via llama-server --hf-repo) -->
+      <div class="mt-2">
+        <div class="whisper">extraction model (integrated local P1 — auto download + detect installed)</div>
+        <div class="flex gap-1 mt-0.5">
+          <button onclick="detectModels()" class="text-[10px] px-2 py-px border border-[var(--line)]">Detect installed / cached</button>
+          <select id="extraction_model" class="minimal-input text-xs flex-1" onchange="onModelSelectChange()"></select>
+        </div>
+        <input id="custom_hf_or_local" placeholder="Qwen/Qwen2.5-3B-Instruct-GGUF or /full/path/to/model.gguf" class="minimal-input w-full text-xs mt-1" oninput="onCustomModelInput()">
+        <div id="model_status" class="text-[9px] whisper mt-0.5"></div>
+        <div class="mt-1 text-[9px]">
+          Escalation (cascade quality without remote LLM):
+          <label class="mr-1"><input type="radio" name="escalation_mode" value="none" checked> none (pure local)</label>
+          <label class="mr-1"><input type="radio" name="escalation_mode" value="deterministic"> + deterministic</label>
+          <label><input type="radio" name="escalation_mode" value="remote"> remote (Sonar)</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div onclick="toggleUnfold(3)" class="synapse-title flex items-center gap-2 mb-px">
+      <div class="flex-1 h-px bg-[var(--line)]"></div>
+      <div>veil</div>
+      <div class="flex-1 h-px bg-[var(--line)]"></div>
+    </div>
+    <div id="unfold-3" class="veil folded poetic text-[10px]">
+      <div class="flex gap-1.5">
+        <input id="max_chunk_chars" value="420" class="minimal-input w-14">
+        <input id="claim_family_similarity_threshold" value="0.72" class="minimal-input w-14">
+        <input id="provider_timeout" value="600" class="minimal-input w-14">
+      </div>
+    </div>
+  </div>
+
+  <!-- attach & steering: more interactive, freeze composition added -->
+  <div class="mt-7 border-t border-[#e6e2d9] pt-2 text-[9px] text-[#6b6557] flex justify-between items-center">
+    <input id="attach_run" placeholder="re-enter a run" class="minimal-input w-40 text-xs" onkeydown="if(event.key==='Enter') attachMonitor()">
+    <div class="flex gap-3">
+      <span onclick="attachMonitor()" class="cursor-pointer active:opacity-60">re-enter</span>
+      <span onclick="stopJob()" class="cursor-pointer active:opacity-60">still</span>
+      <span onclick="freezeComposition()" class="cursor-pointer active:opacity-60" title="freeze the plane composition">freeze</span>
+      <span onclick="launch()" class="cursor-pointer active:opacity-60 border-l border-[#d9d2c6] pl-2">launch</span>
+    </div>
+  </div>
+
+  <div id="evaluation-veil" class="hidden mt-5 border-t border-[#e6e2d9] pt-2">
+    <div class="synapse-title text-[7px] tracking-[1.5px]">REVEALED</div>
+    <div id="insights" class="poetic text-[10px] text-[#5a554c]"></div>
+  </div>
+
+</div>
+
+<script>
+let planeCanvas, planeCtx;
+let live = { stage: 'ground', families: 0, escalated: 0, step: 0, loss: 0, runName: null };
+let unfoldStates = {1: false, 2: false, 3: false};
+let analysisData = null;
+let guidanceMode = false;
+let currentDataVolume = 8;
+let currentTrainingPower = 7200;
+let frozen = false;
+let mouseX = 0.5, mouseY = 0.5;
+let touchPresence = 0;
+
+function syncNumFromRange(rangeEl, numId, scale=1) {
+  const n = document.getElementById(numId);
+  if (n) n.value = (parseFloat(rangeEl.value) / scale).toFixed(scale > 1 ? 2 : 0);
+}
+function syncRangeFromNum(numEl, rangeId, scale=1) {
+  const r = document.getElementById(rangeId);
+  if (r) r.value = (parseFloat(numEl.value) * scale).toFixed(2);
+}
+
+function setProfile(pill) {
+  document.querySelectorAll('#scale-pills .scale-pill').forEach(el => el.classList.remove('active'));
+  pill.classList.add('active');
+  document.getElementById('profile').value = pill.dataset.profile;
+  onProfileChange();
+}
+
+function freezeComposition() {
+  frozen = !frozen;
+  const p = document.getElementById('stage-poetry');
+  if (frozen) {
+    p.textContent = "composition stilled";
+  } else {
+    p.textContent = "the plane breathes";
+    setTimeout(() => { if (!guidanceMode) p.textContent = "awaiting the measure"; }, 820);
+  }
+}
+
+function updateGodLikeFromPrimary() {
+  const msEl = document.getElementById('max_sources');
+  const ms = msEl ? +msEl.value || 8 : 8;
+  const full = document.getElementById('use_full_sources') && document.getElementById('use_full_sources').checked;
+  currentDataVolume = full ? 2000 : ms;
+
+  const esc = +document.getElementById('max_escalation_fraction').value || 0.25;
+  live.escalated = Math.floor(currentDataVolume * esc * 2.5);
+
+  const prof = document.getElementById('profile').value;
+  let wall = +document.getElementById('custom_wall_seconds').value || 7200;
+  if (prof === 'large') wall = 28800;
+  if (prof === 'custom') wall = +document.getElementById('custom_wall_seconds').value || 86400;
+  currentTrainingPower = wall;
+
+  live.families = currentDataVolume * 2.8;
+  live.step = Math.floor(currentTrainingPower / 80);
+
+  triggerGodLikeAnimation();
+
+  const bar = document.getElementById('god-data-bar');
+  if (bar) bar.style.width = Math.min(96, (currentDataVolume / 1600) * 100) + '%';
+
+  const pulse = document.getElementById('god-training-pulse');
+  if (pulse) {
+    const spd = Math.max(2.2, Math.min(14, currentTrainingPower / 4200));
+    pulse.style.animation = `god-pulse ${spd}s ease-in-out infinite`;
+  }
+  syncPillsFromProfile();
+}
+
+function syncPillsFromProfile() {
+  const prof = document.getElementById('profile').value;
+  document.querySelectorAll('#scale-pills .scale-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.profile === prof);
+  });
+}
+
+function triggerGodLikeAnimation() {
+  if (!planeCtx) return;
+  guidanceMode = true;
+  setTimeout(() => { guidanceMode = false; }, 5200);
+}
+
+function drawWhitePlane() {
+  const c = planeCtx;
+  const w = planeCanvas.width;
+  const h = planeCanvas.height;
+  c.clearRect(0, 0, w, h);
+
+  // force whiter base
+  c.fillStyle = '#fefcf9';
+  c.fillRect(0, 0, w, h);
+
+  const t = frozen ? 172800000 : Date.now();
+  const dataVol = currentDataVolume || 8;
+  const trainPower = currentTrainingPower || 7200;
+  const dataNorm = Math.min(1, dataVol / 1400);
+  const trainNorm = Math.min(1, trainPower / 58000);
+
+  // mouse interactive ethereal touch
+  touchPresence = Math.max(0, touchPresence * 0.94 - 0.006);
+  const mx = (mouseX - 0.5) * 0.6;
+  const my = (mouseY - 0.5) * 0.4;
+
+  // ultra-faint base horizontal veil strata (whiter, godly)
+  c.strokeStyle = `rgba(180,168,138,${0.008 + dataNorm * 0.009})`;
+  c.lineWidth = 0.6;
+  for (let i = -5; i < 6; i++) {
+    const y = h * 0.5 + i * 52 + Math.sin(t / 26000 + i) * 1.5;
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(w, y + Math.sin(i * 0.4 + t / 31000) * (2 + dataNorm * 3));
+    c.stroke();
+  }
+
+  // godly soft rays — very pale, slow, ethereal
+  const raySp = 29000 / (1 + trainNorm * 0.5);
+  const rpos = ((t % raySp) / raySp) * w * 1.6 - w * 0.3 + mx * 40;
+  c.fillStyle = `rgba(197,164,110,${0.014 + trainNorm * 0.011})`;
+  c.fillRect(rpos, 0, w * 0.065, h);
+
+  // extra god-field soft ellipses (ethereal background)
+  c.strokeStyle = `rgba(197,164,110,${0.007 + trainNorm * 0.006})`;
+  c.lineWidth = 0.5;
+  for (let k=0; k<3; k++) {
+    c.beginPath();
+    const cx = w*0.5 + k*18 + mx*12, cy = h*0.48 + Math.sin(t/19000 + k)*7;
+    c.ellipse(cx, cy, 260 + k*70, 90 + k*18, 0.06 + k*0.01, 0, Math.PI*2);
+    c.stroke();
+  }
+
+  // nodes + hypergraph wires — higher abstraction, short labels only when seeking
+  const nodes = [
+    {x: w*0.17 + mx*6, y: h*0.33 + my*4, label: 'field'},
+    {x: w*0.34 + mx*3, y: h*0.42, label: 'cascade'},
+    {x: w*0.52, y: h*0.34 + my*3, label: 'geometry'},
+    {x: w*0.69, y: h*0.43, label: 'devotion'},
+    {x: w*0.85 - mx*4, y: h*0.36, label: 'verdict'}
+  ];
+
+  // base delicate wires
+  c.strokeStyle = guidanceMode || touchPresence > 0.1 ? `rgba(180,165,120,${0.09 + dataNorm*0.06 + touchPresence*0.05})` : 'rgba(170,158,115,0.032)';
+  c.lineWidth = (guidanceMode || touchPresence>0.05) ? 0.85 : 0.35;
+  for (let i=0; i<nodes.length-1; i++) {
+    const a = nodes[i], b = nodes[i+1];
+    c.beginPath(); c.moveTo(a.x, a.y);
+    const mxm = (a.x+b.x)/2 + Math.sin(t/15000 + i)* (3 + dataNorm*4) + mx*8;
+    const mym = (a.y+b.y)/2 + Math.cos(t/21000 + i*1.3)*1.2;
+    c.quadraticCurveTo(mxm, mym, b.x, b.y);
+    c.stroke();
+  }
+
+  // powered flows (interactive)
+  if (dataNorm > 0.08 || trainNorm > 0.07 || touchPresence > 0.05) {
+    c.strokeStyle = `rgba(197,164,110,${0.16 + dataNorm*0.09 + trainNorm*0.04 + touchPresence*0.1})`;
+    c.lineWidth = 0.9 + touchPresence*0.6;
+    c.beginPath(); c.moveTo(nodes[0].x, nodes[0].y); c.lineTo(nodes[1].x, nodes[1].y); c.stroke();
+    c.beginPath(); c.moveTo(nodes[2].x, nodes[2].y); c.lineTo(nodes[3].x, nodes[3].y); c.stroke();
+  }
+
+  // nodes: delicate, whiter presence
+  nodes.forEach((n, i) => {
+    const matter = i < 2 ? dataNorm : trainNorm;
+    const r = 2.2 + matter * 3.8 + (i===2 && trainNorm>0.12 ? 1.5 : 0);
+    c.fillStyle = `rgba(185,170,125,${0.045 + matter * 0.11 + (guidanceMode?0.04:0)})`;
+    c.beginPath(); c.arc(n.x, n.y, r, 0, Math.PI*2); c.fill();
+
+    if (guidanceMode || touchPresence > 0.3) {
+      c.fillStyle = 'rgba(85,80,68,0.28)';
+      c.font = '7.5px Georgia, serif';
+      c.fillText(n.label, n.x + 5, n.y - 3);
+    }
+  });
+
+  // learned geometry halos (right, gauge feel, ablatable visually too)
+  if (trainNorm > 0.12) {
+    c.strokeStyle = `rgba(197,164,110,${0.028 + trainNorm * 0.07})`;
+    c.lineWidth = 0.45;
+    const cx = w * 0.60, cy = h * 0.39;
+    for (let k=0; k<5; k++) {
+      c.beginPath();
+      const rr = 22 + k*9 + Math.sin(t / (16500 - trainNorm*2200) + k) * (2.5 + trainNorm*2.5);
+      c.ellipse(cx + k*3.5 + mx*2, cy + my*1.5, rr*0.72, rr*0.32, 0.16, 0, Math.PI*2);
+      c.stroke();
+    }
+  }
+
+  // claim-field micro density (left, abstract points, not tokens)
+  if (dataNorm > 0.07) {
+    c.fillStyle = `rgba(190,175,130,${0.022 + dataNorm * 0.045})`;
+    const bx = w * 0.11;
+    const cnt = Math.floor(6 + dataNorm * 22);
+    for (let i=0; i<cnt; i++) {
+      const px = bx + (i%5)*9 + Math.sin(i*1.7 + t/11000)* (1.5 + dataNorm);
+      const py = h*0.26 + Math.floor(i/5)*7 + Math.cos(i + t/14000)*2.2;
+      c.fillRect(px, py, 0.9, 0.9);
+    }
+  }
+
+  // faint mouse seeker touch halo (godly interactive)
+  if (touchPresence > 0.02) {
+    c.strokeStyle = `rgba(197,164,110,${0.06 * touchPresence})`;
+    c.lineWidth = 0.8;
+    c.beginPath();
+    c.arc(mouseX * w, mouseY * h, 18 + touchPresence*22, 0, Math.PI*2);
+    c.stroke();
+    c.beginPath();
+    c.arc(mouseX * w, mouseY * h, 7 + touchPresence*9, 0, Math.PI*2);
+    c.stroke();
+  }
+
+  requestAnimationFrame(drawWhitePlane);
+}
+
+function onProfileChange() {
+  // sync custom defaults on major profile change for convenience
+  const p = document.getElementById('profile').value;
+  const steps = document.getElementById('custom_max_steps');
+  const recs = document.getElementById('custom_max_records');
+  const wall = document.getElementById('custom_wall_seconds');
+  if (p === 'smoke') { if(steps)steps.value=2; if(recs)recs.value=24; if(wall)wall.value=300; }
+  else if (p === 'pilot') { if(steps)steps.value=20; if(recs)recs.value=256; if(wall)wall.value=1800; }
+  else if (p === 'standard') { if(steps)steps.value=100; if(recs)recs.value=2048; if(wall)wall.value=7200; }
+  else if (p === 'large') { if(steps)steps.value=500; if(recs)recs.value=10000; if(wall)wall.value=28800; }
+  else if (p === 'custom') { if(wall)wall.value=86400; }
+  updateGodLikeFromPrimary();
+}
+
+function toggleUnfold(level) {
+  const el = document.getElementById('unfold-' + level);
+  const open = !unfoldStates[level];
+  unfoldStates[level] = open;
+  el.classList.toggle('folded', !open);
+  el.classList.toggle('unfolded', open);
+}
+
+function enlightenVision() {
+  guidanceMode = true;
+  const p = document.getElementById('stage-poetry');
+  p.textContent = "field → cascade → learned geometry → devotion → verdict";
+  setTimeout(() => {
+    guidanceMode = false;
+    p.textContent = "awaiting the measure";
+  }, 6800);
+}
+
+function collect() {
+  const useFull = document.getElementById('use_full_sources').checked;
+  let maxS = +document.getElementById('max_sources').value || null;
+  if (useFull) maxS = null;
+  // Read extraction model choice (supports fully local integrated P1)
+  const modelSel = document.getElementById('extraction_model');
+  const customModel = document.getElementById('custom_hf_or_local') ? document.getElementById('custom_hf_or_local').value.trim() : '';
+  let hf_repo = null;
+  let local_gguf_path = null;
+  const chosen = (modelSel && modelSel.value) || customModel;
+  if (chosen) {
+    if (chosen.startsWith('local:') || chosen.includes('.gguf') || chosen.startsWith('/')) {
+      local_gguf_path = chosen.replace(/^local:/, '');
+    } else {
+      hf_repo = chosen;
+    }
+  }
+
+  // escalation_mode for no-remote integrated P1
+  let escMode = 'none';
+  const escRadios = document.querySelectorAll('input[name="escalation_mode"]');
+  if (escRadios.length) {
+    for (const r of escRadios) { if (r.checked) { escMode = r.value; break; } }
+  }
+
+  return {
+    run_name: null,
+    mode: (hf_repo || local_gguf_path) ? "integrated" : "remote",
+    corpus: { input_path: document.getElementById('input_path').value || "examples/corpus/ml_software_benchmarks/sources", cutoff_date: document.getElementById('cutoff_date').value || "2026-01-01", max_chunk_chars: 420, claim_family_similarity_threshold: 0.72 },
+    providers: { primary: { type: "openai_compatible", model: document.getElementById('primary_model').value || "local-gguf", timeout_seconds: +document.getElementById('provider_timeout').value || 600 } },
+    data_budget: { max_sources: maxS, max_escalation_fraction: +document.getElementById('max_escalation_fraction').value || 0.25 },
+    training: { profile: document.getElementById('profile').value, geometry_config_path: document.getElementById('geometry_preset').value || "configs/geometry/geometry_learned_smoke.yaml", text_projection_weight: 0.2, geometry_observables_weight: 0.2, max_steps: +document.getElementById('custom_max_steps').value || null, max_records_seen: +document.getElementById('custom_max_records').value || null, max_wall_clock_seconds: +document.getElementById('custom_wall_seconds').value || null },
+    hf_repo: hf_repo,
+    local_gguf_path: local_gguf_path,
+    escalation_mode: escMode,
+    escalation_perplexity: escMode === 'remote'
+  };
+}
+
+async function launch() {
+  const req = collect();
+  document.getElementById('stage-poetry').textContent = "measure cast. plane awakens...";
+  const r = await fetch('/api/launch', { method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(req) });
+  if (!r.ok) { document.getElementById('stage-poetry').textContent = "measure not taken"; return; }
+  const j = await r.json();
+  live.runName = j.run_name;
+  document.getElementById('attach_run').value = j.run_name;
+  document.getElementById('stage-poetry').textContent = "wiring under the measure";
+}
+
+async function attachMonitor() {
+  const name = document.getElementById('attach_run').value.trim();
+  if (!name) return;
+  await fetch('/api/attach', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({run_name: name})});
+  live.runName = name;
+  document.getElementById('stage-poetry').textContent = "re-entered";
+  setTimeout(() => loadAnalysis(name), 260);
+}
+
+async function loadAnalysis(name) {
+  const r = await fetch('/api/runs/' + encodeURIComponent(name) + '/analysis');
+  analysisData = await r.json();
+  const v = document.getElementById('evaluation-veil');
+  v.classList.remove('hidden');
+  document.getElementById('insights').innerHTML = (analysisData.insights || []).map(i => `<div>${i}</div>`).join('');
+  document.getElementById('stage-poetry').textContent = "measure held in the white";
+}
+
+function initCanvas() {
+  planeCanvas = document.getElementById('white-plane');
+  planeCtx = planeCanvas.getContext('2d');
+  function rs() { planeCanvas.width = window.innerWidth; planeCanvas.height = Math.max(520, window.innerHeight * 0.62); }
+  window.addEventListener('resize', rs); rs();
+
+  // interactive plane: mouse moves affect godly flows, click tunes harvest/devotion (high-level)
+  planeCanvas.addEventListener('mousemove', e => {
+    const rect = planeCanvas.getBoundingClientRect();
+    mouseX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    mouseY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    touchPresence = Math.min(1, touchPresence + 0.18);
+    if (Math.random() < 0.14) triggerGodLikeAnimation();
+  });
+  planeCanvas.addEventListener('click', () => {
+    if (mouseX < 0.42) {
+      // left: increase harvest (data)
+      const ms = document.getElementById('max_sources');
+      if (ms) {
+        ms.value = Math.min(48, (+ms.value || 8) + 4);
+        const nn = document.getElementById('max_sources_num'); if (nn) nn.value = ms.value;
+        updateGodLikeFromPrimary();
+      }
+    } else {
+      // right: increase devotion wall
+      const w = document.getElementById('custom_wall_seconds');
+      if (w) { w.value = (+w.value || 7200) + 2400; updateGodLikeFromPrimary(); }
+    }
+  });
+
+  drawWhitePlane();
+}
+
+async function initPresets() {
+  try {
+    const p = await (await fetch('/api/presets')).json();
+    const g = document.getElementById('geometry_preset');
+    (p.geometry || []).slice(0,3).forEach(it => {
+      const o = document.createElement('option'); o.value = it.path; o.textContent = it.path.split('/').pop(); g.appendChild(o);
+    });
+  } catch(e){}
+}
+
+function wire() {
+  const es = new EventSource('/api/events');
+  es.onmessage = (m) => {
+    try {
+      const {event, data} = JSON.parse(m.data || '{}');
+      if (event === 'stage' || event === 'snapshot') {
+        if (data.stage) live.stage = data.stage;
+        if (data.run_name) live.runName = data.run_name;
+        const p = document.getElementById('stage-poetry');
+        if (data.stage === 'done') p.textContent = "measure complete. field holds.";
+      }
+      if (event === 'corpus_progress' || event === 'extraction_stats') {
+        if (data.source_count) currentDataVolume = data.source_count * 2.6;
+        live.families = currentDataVolume;
+      }
+      if (event === 'train_step') {
+        live.step = data.step || live.step;
+        live.loss = data.loss || live.loss;
+      }
+      if (event === 'done') {
+        if (live.runName) loadAnalysis(live.runName);
+      }
+    } catch(e){}
+  };
+  setInterval(() => { if (live.runName) updateGodLikeFromPrimary(); }, 16000);
+}
+
+// -----------------------------------------------------------------------------
+// WebUI helpers for integrated P1 local (no remote LLM), auto model detect/download,
+// and internet data collection via Firecrawl/Brave (sources harvested -> input_path for corpus)
+// -----------------------------------------------------------------------------
+
+async function detectModels() {
+  const sel = document.getElementById('extraction_model');
+  const status = document.getElementById('model_status');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">scanning...</option>';
+  if (status) status.textContent = 'scanning HF cache + local .gguf ...';
+  try {
+    const r = await fetch('/api/models');
+    const data = await r.json();
+    sel.innerHTML = '';
+    const opt0 = document.createElement('option');
+    opt0.value = ''; opt0.textContent = '(choose or use custom below)';
+    sel.appendChild(opt0);
+    (data.cached || []).forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.local_gguf_path || m.hf_repo || m.path;
+      o.textContent = m.display || m.path;
+      if (m.cached) o.textContent += ' ✓';
+      sel.appendChild(o);
+    });
+    (data.suggestions || []).forEach(s => {
+      const o = document.createElement('option');
+      o.value = s;
+      o.textContent = s + ' (will auto-download on launch)';
+      sel.appendChild(o);
+    });
+    if (status) status.textContent = `found ${ (data.cached||[]).length } cached; llama-server will auto-fetch HF models via --hf-repo`;
+  } catch (e) {
+    if (status) status.textContent = 'scan failed (backend /api/models); enter custom hf_repo or local path';
+    // fallback suggestions
+    const suggestions = ["Qwen/Qwen2.5-3B-Instruct-GGUF", "unsloth/Llama-3.2-3B-Instruct-GGUF"];
+    suggestions.forEach(s => {
+      const o = document.createElement('option'); o.value = s; o.textContent = s + ' (auto dl)';
+      sel.appendChild(o);
+    });
+  }
+}
+
+function onModelSelectChange() {
+  const sel = document.getElementById('extraction_model');
+  const cust = document.getElementById('custom_hf_or_local');
+  const st = document.getElementById('model_status');
+  if (sel && sel.value && cust) {
+    cust.value = sel.value;
+  }
+  if (st && sel && sel.value) {
+    st.textContent = sel.value.includes('.gguf') || sel.value.startsWith('/') ? 'local file — no download' : 'HF — llama-server auto-downloads to cache on integrated launch';
+  }
+}
+
+function onCustomModelInput() {
+  const cust = document.getElementById('custom_hf_or_local');
+  const st = document.getElementById('model_status');
+  if (st && cust && cust.value) {
+    const v = cust.value;
+    st.textContent = (v.includes('.gguf') || v.startsWith('/')) ? 'local GGUF selected (no download)' : 'HF repo — will auto download via --hf-repo when launching integrated';
+  }
+}
+
+async function doHarvest(tool) {
+  const qEl = document.getElementById('harvest_query');
+  const resBox = document.getElementById('harvest_results');
+  if (!qEl || !resBox) return;
+  const query = qEl.value.trim();
+  if (!query && tool !== 'fetch') { resBox.textContent = 'enter query or url'; return; }
+  resBox.textContent = `harvesting via ${tool}...`;
+  try {
+    const body = { tool, query: query || '', count: 6 };
+    // for fetch tool, allow comma urls in query field
+    if (tool === 'fetch' && query.includes('http')) body.urls = query.split(',').map(s=>s.trim()).filter(Boolean);
+    const r = await fetch('/api/harvest', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify(body) });
+    const data = await r.json();
+    if (data.error) { resBox.textContent = data.error; return; }
+    resBox.innerHTML = `<span class="whisper">${data.count} saved to ${data.dir}</span><br>`;
+    (data.items || []).slice(0,5).forEach(it => {
+      const d = document.createElement('div');
+      d.textContent = (it.title || it.url || it.saved || '').slice(0,80);
+      resBox.appendChild(d);
+    });
+    // stash for apply
+    window._lastHarvestDir = data.dir;
+  } catch (e) {
+    resBox.textContent = 'harvest failed: ' + e;
+  }
+}
+
+function applyHarvestToInput() {
+  const dir = window._lastHarvestDir;
+  const inp = document.getElementById('input_path');
+  if (dir && inp) {
+    inp.value = dir;
+    alert('Set input_path to harvested dir. Launch will use it for P1 corpus.');
+  } else {
+    alert('Harvest first (Brave/Firecrawl).');
+  }
+}
+
+async function boot() {
+  initCanvas();
+  await initPresets();
+  wire();
+
+  // auto detect models on boot for convenience (local P1)
+  setTimeout(() => {
+    const sel = document.getElementById('extraction_model');
+    if (sel) detectModels();
+  }, 900);
+
+  // defaults + initial reaction + first unfold
+  setTimeout(() => {
+    // ensure pill state
+    const profSel = document.getElementById('profile');
+    if (profSel.value === 'standard') {
+      const def = document.querySelector('#scale-pills .scale-pill[data-profile="standard"]');
+      if (def) def.classList.add('active');
+    }
+    updateGodLikeFromPrimary();
+    syncPillsFromProfile();
+    const el = document.getElementById('unfold-1');
+    el.classList.remove('folded'); el.classList.add('unfolded');
+    unfoldStates[1] = true;
+  }, 380);
+
+  // occasional subtle boost
+  setInterval(() => { if (Math.random()<0.2 && !frozen) triggerGodLikeAnimation(); }, 24000);
+
+  console.log('%c[AXIOM] white plane — less text, whiter ethereal, interactive controls, godly abstraction', 'color:#7a7366');
+}
+window.onload = boot;
+</script>
+</body>
+</html>

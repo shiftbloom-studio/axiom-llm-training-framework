@@ -1,10 +1,11 @@
-"""Unweighted geometry regularizer terms for P6."""
+"""Geometry regularizer terms for P6 (optionally weighted by config)."""
 
 from __future__ import annotations
 
 import torch
 from torch import Tensor
 
+from hcaps.geometry.config import RegularizerConfig
 from hcaps.geometry.observables import GeometryObservables
 
 MIN_SMOOTHNESS_NODES = 2
@@ -17,6 +18,7 @@ def geometry_regularizers(
     path_consistency_value: Tensor,
     conditioning_features: Tensor,
     observables: GeometryObservables,
+    weights: RegularizerConfig | None = None,
 ) -> dict[str, Tensor]:
     zero = torch.zeros((), dtype=conditioning_features.dtype, device=conditioning_features.device)
     connection_norm = connection_matrices.pow(2).mean() if connection_matrices.numel() > 0 else zero
@@ -30,7 +32,7 @@ def geometry_regularizers(
         identity_bias = (transport_matrices - identity).pow(2).mean()
     context_smoothness = _context_smoothness(conditioning_features)
     usage = -conditioning_features.pow(2).mean().sqrt()
-    return {
+    terms = {
         "connection_norm": connection_norm,
         "curvature_energy": observables.loop_energy,
         "path_consistency": path_consistency_value,
@@ -38,6 +40,9 @@ def geometry_regularizers(
         "transport_identity_bias": identity_bias,
         "non_degenerate_usage": usage,
     }
+    if weights is None:
+        return terms
+    return {name: float(getattr(weights, name)) * value for name, value in terms.items()}
 
 
 def zero_regularizers(

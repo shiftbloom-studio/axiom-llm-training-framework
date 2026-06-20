@@ -1,0 +1,36 @@
+# Learned geometry config for the standalone pioneer E run.
+# Now that the per-term regularizer weights are actually wired (geometry_regularizers
+# honors this block), these values SHAPE the geometry. The two terms that flatten
+# the hypothesis are deliberately 0:
+#   transport_identity_bias: 0  -> do NOT pull transport toward the identity (flat)
+#   curvature_energy:        0  -> do NOT penalize holonomy/curvature (the signal)
+# The rest are gentle stabilizers (kept small; further scaled by the 0.01 geometry
+# regularization loss weight in the training config).
+
+mode: learned
+fiber_dim: 24                 # a bit more transport capacity than smoke's 16
+geometry_feature_dim: 64      # overridden to model_dim by P4GeometryProvider at runtime
+connection_rank: null
+transport_operator: matrix_exp
+max_loop_length: 4
+max_loops_per_batch: 128
+max_loops_per_claim_family: 8
+max_context_degree: 16
+seed: 13
+use_provider_context: true
+use_provider_disagreement_edges: true
+use_relation_type_conditioning: true
+provider_shuffle_control_ready: true
+router_use_geometry: true
+router_geometry_gate_init: 0.05
+router_geometry_dropout: 0.0
+parameter_matched: false
+regularizers:
+  connection_norm: 0.0001        # mild: keep the connection from exploding
+  curvature_energy: 0.0          # OFF: penalizing curvature would flatten the geometry
+  path_consistency: 0.001        # encourage gauge-coherent (path-consistent) transport
+  context_smoothness: 0.0001     # mild smoothness of conditioning across nodes
+  transport_identity_bias: 0.0   # OFF: this is the term that pulls toward flat/no-geometry
+  non_degenerate_usage: 0.001    # mild anti-collapse (reward non-trivial usage)
+export:
+  include_raw_matrices: false

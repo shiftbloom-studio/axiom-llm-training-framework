@@ -74,44 +74,50 @@ class LearnedGeometryModule(nn.Module):
             )
 
         graph_batch = _ensure_loops(graph_batch, self.config)
-        fiber_state = self.fiber_projection(node_states)
-        relation_type_ids = _context_relation_ids(graph_batch)
-        connection = self.connection(
-            graph_batch.context_transition_type_ids,
-            relation_type_ids=relation_type_ids,
-        )
-        path_transports = compose_path_transport(
-            connection.transport_matrices,
-            graph_batch.path_edge_index,
-            graph_batch.path_mask,
-            fiber_dim=self.config.fiber_dim,
-        )
-        loop_transports = compose_path_transport(
-            connection.transport_matrices,
-            graph_batch.loop_path_index,
-            graph_batch.loop_mask,
-            fiber_dim=self.config.fiber_dim,
-        )
-        path_consistency_value = path_consistency(path_transports)
-        context_lability_value = _context_lability(fiber_state, graph_batch)
-        observables = compute_observables(
-            loop_transports,
-            graph_batch.loop_mask,
-            path_consistency_value=path_consistency_value,
-            context_lability_value=context_lability_value,
-        )
-        conditioning_features = self._conditioning_features(
-            fiber_state,
-            graph_batch,
-            observables,
-        )
-        regularizers = geometry_regularizers(
-            connection_matrices=connection.connection_matrices,
-            transport_matrices=connection.transport_matrices,
-            path_consistency_value=path_consistency_value,
-            conditioning_features=conditioning_features,
-            observables=observables,
-        )
+        # Compute the geometry (matrix_exp + transport composition) in float32 even
+        # under a bf16 autocast region: the matrix exponential and path products are
+        # numerically unstable in low precision. The P4GeometryProvider casts the
+        # outputs back to the caller's dtype at its boundary.
+        with torch.autocast(device_type=node_states.device.type, enabled=False):
+            fiber_state = self.fiber_projection(node_states.float())
+            relation_type_ids = _context_relation_ids(graph_batch)
+            connection = self.connection(
+                graph_batch.context_transition_type_ids,
+                relation_type_ids=relation_type_ids,
+            )
+            path_transports = compose_path_transport(
+                connection.transport_matrices,
+                graph_batch.path_edge_index,
+                graph_batch.path_mask,
+                fiber_dim=self.config.fiber_dim,
+            )
+            loop_transports = compose_path_transport(
+                connection.transport_matrices,
+                graph_batch.loop_path_index,
+                graph_batch.loop_mask,
+                fiber_dim=self.config.fiber_dim,
+            )
+            path_consistency_value = path_consistency(path_transports)
+            context_lability_value = _context_lability(fiber_state, graph_batch)
+            observables = compute_observables(
+                loop_transports,
+                graph_batch.loop_mask,
+                path_consistency_value=path_consistency_value,
+                context_lability_value=context_lability_value,
+            )
+            conditioning_features = self._conditioning_features(
+                fiber_state,
+                graph_batch,
+                observables,
+            )
+            regularizers = geometry_regularizers(
+                connection_matrices=connection.connection_matrices,
+                transport_matrices=connection.transport_matrices,
+                path_consistency_value=path_consistency_value,
+                conditioning_features=conditioning_features,
+                observables=observables,
+                weights=self.config.regularizers,
+            )
         diagnostics = build_geometry_diagnostics(
             mode=self.config.mode,
             graph_batch=graph_batch,
