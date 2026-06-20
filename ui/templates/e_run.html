@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<style>
+  html, body { margin:0; padding:0; background:#ffffff; overflow:hidden; height:100%; }
+  body { -webkit-font-smoothing:antialiased; }
+  ::selection { background:#1f3d73; color:#fff; }
+  .wp-rng { -webkit-appearance:none; appearance:none; height:2px; background:#e6e6ea; border-radius:999px; cursor:pointer; width:100%; }
+  .wp-rng::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:10px; height:10px; border-radius:999px; background:#1f3d73; cursor:pointer; }
+  .wp-rng::-moz-range-thumb { width:10px; height:10px; border:none; border-radius:999px; background:#1f3d73; }
+  .wp-in { background:transparent; border:none; border-bottom:1px solid #e6e6ea; color:#1a1813; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:3px 0; outline:none; }
+  .wp-in:focus { border-bottom-color:#1f3d73; }
+  .wp-chip { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.04em; color:#4a463c; padding:4px 10px; border:1px solid #e6e6ea; border-radius:999px; cursor:pointer; transition:border-color .2s, color .2s, background .2s; white-space:nowrap; user-select:none; }
+  .wp-chip:hover { border-color:#1f3d73; }
+  input[type=number].wp-in::-webkit-outer-spin-button, input[type=number].wp-in::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+</style>
+</helmet>
+
+<div id="wp-root" data-screen-label="White Plane" style="position:fixed; inset:0; background:#ffffff; overflow:hidden; font-family:'Schibsted Grotesk',Helvetica,Arial,sans-serif; cursor:default;">
+
+  <canvas id="wp-gl" style="position:absolute; inset:0; width:100%; height:100%; display:block; z-index:1;"></canvas>
+
+  <div id="wp-overlay" style="position:absolute; inset:0; z-index:2; pointer-events:none;"></div>
+
+  <!-- chrome: wordmark -->
+  <div style="position:absolute; left:5vw; top:5vh; z-index:3;">
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.34em; text-transform:uppercase; color:#bdb8ac;">Synaptic &middot; present, with intention</div>
+    <div style="font-family:'Schibsted Grotesk',sans-serif; font-weight:300; font-size:28px; letter-spacing:-0.02em; color:#1a1813; margin-top:6px;">the white plane</div>
+  </div>
+
+  <!-- chrome: poetry, top-centre -->
+  <div id="wp-poetry" style="position:absolute; top:6vh; left:0; right:0; text-align:center; z-index:3; font-size:14px; font-weight:300; letter-spacing:0.02em; color:#a8a294; pointer-events:none;">awaiting the measure</div>
+
+  <!-- chrome: seek -->
+  <div onClick="{{ seek }}" style="position:absolute; left:5vw; bottom:5vh; z-index:3; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.24em; text-transform:uppercase; color:#bdb8ac; cursor:pointer;" style-hover="color:#1f3d73">seek the wiring</div>
+
+  <!-- chrome: steering, bottom-right -->
+  <div style="position:absolute; right:5vw; bottom:5vh; z-index:3; display:flex; align-items:center; gap:18px; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em;">
+    <input id="attach_run" placeholder="re-enter a run" onKeyDown="{{ onAttachKey }}" style="background:transparent; border:none; color:#7a7567; font-family:'IBM Plex Mono',monospace; font-size:11px; outline:none; width:130px; text-align:right;">
+    <span onClick="{{ attach }}" style="color:#a8a294; cursor:pointer;" style-hover="color:#1a1813">re-enter</span>
+    <span onClick="{{ still }}" style="color:#a8a294; cursor:pointer;" style-hover="color:#1a1813">still</span>
+    <span onClick="{{ freeze }}" style="color:#a8a294; cursor:pointer;" style-hover="color:#1a1813">freeze</span>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:820},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1f3d73&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;motion&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:0.55,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;},&quot;showSynapseLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  // ---------- configuration state ----------
+  cfg = {
+    input_path: 'examples/corpus/ml_software_benchmarks/sources',
+    cutoff_date: '2026-01-01',
+    harvest_query: '',
+    max_sources: 8, use_full: false,
+    devotion: 56, wall: 7200,
+    primary_model: 'sonar-pro',
+    geometry_preset: '',
+    extraction_model: '', custom_model: '',
+    escalation_mode: 'none',
+    max_escalation_fraction: 0.25,
+    max_steps: 100, max_records: 2048,
+    max_chunk_chars: 420, claim_sim: 0.72, provider_timeout: 600,
+    text_proj_w: 0.2, geom_obs_w: 0.2,
+    preset: 'standard'
+  };
+
+  hoverKey = null; activeKey = null; frozen = false; reduced = false;
+  mx = 0.5; my = 0.5; reveal = 0; t0 = 0; runName = null;
+  models = []; geometryPresets = []; harvestItems = []; lastHarvestDir = null;
+
+  // ---------- node + wire graph ----------
+  NODES = [
+    { k:'harvest', label:'harvest', grp:'anchor', ctrl:'range', x:0.42, y:0.44, min:1, max:48, step:1 },
+    { k:'devotion', label:'devotion', grp:'anchor', ctrl:'devotion', x:0.58, y:0.56, min:0, max:100, step:1 },
+    { k:'source', label:'source', grp:1, ctrl:'text', x:0.28, y:0.30 },
+    { k:'cutoff', label:'cutoff', grp:1, ctrl:'text', x:0.30, y:0.66 },
+    { k:'field', label:'the open field', grp:1, ctrl:'harvest', x:0.16, y:0.50 },
+    { k:'paradigm', label:'paradigm', grp:1, ctrl:'paradigm', x:0.46, y:0.25 },
+    { k:'launch', label:'launch', grp:'action', ctrl:'action', x:0.55, y:0.80 },
+    { k:'pmodel', label:'primary model', grp:2, ctrl:'text', x:0.71, y:0.32 },
+    { k:'geometry', label:'geometry', grp:2, ctrl:'select-geo', x:0.81, y:0.49 },
+    { k:'extraction', label:'extraction model', grp:2, ctrl:'extraction', x:0.66, y:0.69 },
+    { k:'cascade', label:'cascade reach', grp:2, ctrl:'range', x:0.52, y:0.66, min:0, max:0.5, step:0.01 },
+    { k:'quality', label:'cascade quality', grp:2, ctrl:'radio', x:0.40, y:0.75 },
+    { k:'steps', label:'steps', grp:2, ctrl:'num', x:0.73, y:0.21 },
+    { k:'records', label:'records', grp:2, ctrl:'num', x:0.85, y:0.34 },
+    { k:'chunk', label:'chunk chars', grp:3, ctrl:'num', x:0.14, y:0.21 },
+    { k:'sim', label:'claim similarity', grp:3, ctrl:'num', x:0.14, y:0.80 },
+    { k:'timeout', label:'timeout', grp:3, ctrl:'num', x:0.87, y:0.75 },
+    { k:'textw', label:'text projection', grp:3, ctrl:'num', x:0.87, y:0.17 },
+    { k:'geomw', label:'geometry observables', grp:3, ctrl:'num', x:0.25, y:0.87 }
+  ];
+  WIRES = [
+    ['harvest','source'],['harvest','field'],['harvest','cutoff'],['harvest','paradigm'],['harvest','devotion'],['harvest','cascade'],
+    ['devotion','launch'],['devotion','geometry'],['devotion','steps'],['devotion','records'],['devotion','quality'],['devotion','cascade'],
+    ['source','chunk'],['cutoff','sim'],['field','geomw'],['paradigm','pmodel'],['pmodel','geometry'],['pmodel','steps'],
+    ['geometry','extraction'],['extraction','timeout'],['extraction','quality'],['steps','records'],['records','textw'],['geometry','textw'],
+    ['cascade','quality'],['launch','extraction']
+  ];
+
+  // node visual profile by group
+  prof(g) {
+    if (g === 'anchor') return { size: 16, halo: 60, bright: 1.0, depth: 0.5, quantum: 52 };
+    if (g === 'action') return { size: 13, halo: 52, bright: 0.95, depth: 0.6, quantum: 46 };
+    if (g === 1) return { size: 9, halo: 34, bright: 0.78, depth: 0.85, quantum: 38 };
+    if (g === 2) return { size: 6.5, halo: 24, bright: 0.5, depth: 1.15, quantum: 30 };
+    return { size: 4.5, halo: 16, bright: 0.3, depth: 1.5, quantum: 24 };
+  }
+
+  // ---------- lifecycle ----------
+  renderVals() {
+    return {
+      seek: () => this.seek(),
+      attach: () => this.attach(),
+      still: () => this.still(),
+      freeze: () => { this.frozen = !this.frozen; this.poetry(this.frozen ? 'the plane is stilled' : 'the plane breathes'); },
+      onAttachKey: (e) => { if (e.key === 'Enter') this.attach(); }
+    };
+  }
+
+  componentDidMount() {
+    this.reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.nodeByKey = {}; this.NODES.forEach(n => { this.nodeByKey[n.k] = n; n.bb = this.prof(n.grp).bright; });
+    this.root = document.getElementById('wp-root');
+    this.overlay = document.getElementById('wp-overlay');
+    this.buildLabels();
+    this.buildPanel();
+    this.attachInput();
+    this.t0 = performance.now();
+    this.waitThree(0);
+    // backend (best-effort, silent without server)
+    this.initPresets(); this.detectModels(); this.wireEvents();
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.raf);
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+    if (this._es) try { this._es.close(); } catch (e) {}
+  }
+
+  waitThree(tries) {
+    if (window.THREE) { this.initThree(); this.loop(); return; }
+    if (tries > 80) return;
+    setTimeout(() => this.waitThree(tries + 1), 60);
+  }
+
+  // ---------- three.js scene ----------
+  initThree() {
+    const THREE = window.THREE;
+    const canvas = document.getElementById('wp-gl');
+    this.W = window.innerWidth; this.H = window.innerHeight;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+    r.setPixelRatio(dpr); r.setSize(this.W, this.H, false); r.setClearColor(0xffffff, 1);
+    this.scene = new THREE.Scene();
+    this.cam = new THREE.OrthographicCamera(0, this.W, 0, this.H, -1000, 1000);
+    this.cam.position.z = 100;
+
+    const accent = this.accentVec();
+    this.genField();
+    this.genNetwork();
+
+    this.uni = {
+      uTime: { value: 0 }, uRes: { value: new THREE.Vector2(this.W, this.H) },
+      uMouse: { value: new THREE.Vector2(0.5, 0.5) }, uData: { value: 0.16 },
+      uTrain: { value: 0.1 }, uAccent: { value: accent }, uInk: { value: new THREE.Vector3(0.11, 0.11, 0.10) }, uMotion: { value: this.motion() }, uPx: { value: dpr }
+    };
+    // per-material uniform maps sharing the same value objects
+    this.Upt = { uTime: this.uni.uTime, uMotion: this.uni.uMotion, uPx: this.uni.uPx, uColor: this.uni.uAccent };
+    this.Ugray = { uTime: this.uni.uTime, uMotion: this.uni.uMotion, uPx: this.uni.uPx, uColor: this.uni.uInk };
+
+    // background flow field
+    const bgGeo = new THREE.PlaneGeometry(1, 1);
+    const bgMat = new THREE.ShaderMaterial({
+      uniforms: this.uni, depthTest: false, depthWrite: false,
+      vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+      fragmentShader: this.bgFrag()
+    });
+    this.bg = new THREE.Mesh(bgGeo, bgMat);
+    this.bg.renderOrder = 0; this.scene.add(this.bg);
+    this.layoutBg();
+
+    // materials
+    const ptMat = new THREE.ShaderMaterial({ uniforms: this.Upt, transparent: true, depthTest: false, depthWrite: false, blending: THREE.NormalBlending, vertexShader: this.ptVert(), fragmentShader: this.ptFrag() });
+    this.ptMat = ptMat;
+    const grayMat = new THREE.ShaderMaterial({ uniforms: this.Ugray, transparent: true, depthTest: false, depthWrite: false, blending: THREE.NormalBlending, vertexShader: this.ptVert(), fragmentShader: this.ptFrag() });
+    this.grayMat = grayMat;
+    const quantumMat = new THREE.ShaderMaterial({ uniforms: this.Upt, transparent: true, depthTest: false, depthWrite: false, blending: THREE.NormalBlending, vertexShader: this.qVert(), fragmentShader: this.qFrag() });
+    this.quantumMat = quantumMat;
+    const quantumGray = new THREE.ShaderMaterial({ uniforms: this.Ugray, transparent: true, depthTest: false, depthWrite: false, blending: THREE.NormalBlending, vertexShader: this.qVert(), fragmentShader: this.qFrag() });
+    this.quantumGray = quantumGray;
+
+    // ---- gray ambient field: inert synapses + their mesh ----
+    const FN = this.field.length;
+    this.gField = this.makePts(FN);
+    this.fieldPts = new THREE.Points(this.gField, grayMat); this.fieldPts.renderOrder = 1; this.scene.add(this.fieldPts);
+    this.gFieldWire = new THREE.BufferGeometry();
+    this.gFieldWire.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.fieldWires.length * 2 * 3), 3));
+    this.wGrayMat = new THREE.LineBasicMaterial({ color: new THREE.Color(0x1a1813), transparent: true, opacity: 0.05, depthTest: false });
+    this.fieldWireObj = new THREE.LineSegments(this.gFieldWire, this.wGrayMat); this.fieldWireObj.renderOrder = 0.5; this.scene.add(this.fieldWireObj);
+
+    // interactive -> field link wires (integrate the colored nodes into the mesh)
+    this.gLink = new THREE.BufferGeometry();
+    this.gLink.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.links.length * 2 * 3), 3));
+    this.wLinkMat = new THREE.LineBasicMaterial({ color: new THREE.Color(0x1a1813), transparent: true, opacity: 0.12, depthTest: false });
+    this.linkObj = new THREE.LineSegments(this.gLink, this.wLinkMat); this.linkObj.renderOrder = 1.2; this.scene.add(this.linkObj);
+
+    const N = this.NODES.length;
+    // quantum field around each interactive synapse
+    this.gQuantum = this.makePts(N);
+    this.quantum = new THREE.Points(this.gQuantum, quantumMat); this.quantum.renderOrder = 2; this.scene.add(this.quantum);
+
+    // interactive wires (stronger contrast)
+    this.gWire = new THREE.BufferGeometry();
+    this.gWire.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.WIRES.length * 2 * 3), 3));
+    this.wMat = new THREE.LineBasicMaterial({ color: new THREE.Color(this.accent()), transparent: true, opacity: 0.24, depthTest: false });
+    this.wires = new THREE.LineSegments(this.gWire, this.wMat); this.wires.renderOrder = 2.5; this.scene.add(this.wires);
+
+    // halo + core
+    this.gCore = this.makePts(N); this.gHalo = this.makePts(N);
+    this.core = new THREE.Points(this.gCore, ptMat); this.core.renderOrder = 5;
+    this.halo = new THREE.Points(this.gHalo, ptMat); this.halo.renderOrder = 3;
+    this.scene.add(this.halo); this.scene.add(this.core);
+
+    // pulses (one per wire)
+    this.gPulse = this.makePts(this.WIRES.length);
+    this.pulse = new THREE.Points(this.gPulse, ptMat); this.pulse.renderOrder = 6;
+    this.scene.add(this.pulse);
+
+    // ---- relays: visual-only synapses woven between the real ones ----
+    const R = this.relays.length;
+    this.gRelayWire = new THREE.BufferGeometry();
+    this.gRelayWire.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.relayEdges.length * 2 * 3), 3));
+    this.wRelayMat = new THREE.LineBasicMaterial({ color: new THREE.Color(0x1a1813), transparent: true, opacity: 0.12, depthTest: false });
+    this.relayWireObj = new THREE.LineSegments(this.gRelayWire, this.wRelayMat); this.relayWireObj.renderOrder = 2.2; this.scene.add(this.relayWireObj);
+    this.gRelayHalo = this.makePts(R); this.relayHalo = new THREE.Points(this.gRelayHalo, grayMat); this.relayHalo.renderOrder = 3.1; this.scene.add(this.relayHalo);
+    this.gRelayCore = this.makePts(R); this.relayCore = new THREE.Points(this.gRelayCore, grayMat); this.relayCore.renderOrder = 4.1; this.scene.add(this.relayCore);
+
+    // ---- echo impulses travelling the network on click ----
+    this.gEcho = this.makePts(720);
+    this.echoPts = new THREE.Points(this.gEcho, ptMat); this.echoPts.renderOrder = 7; this.scene.add(this.echoPts);
+    this.flash = new Float32Array(this.NODES.length + R);
+    this.impulses = [];
+
+    this._onResize = () => this.resize();
+    window.addEventListener('resize', this._onResize);
+    // interaction on the root
+    this.root.addEventListener('mousemove', (e) => this.onMove(e));
+    this.root.addEventListener('click', (e) => this.onClick(e));
+    this.root.addEventListener('mouseleave', () => { this.hoverKey = null; this.root.style.cursor = 'default'; });
+  }
+
+  makePts(n) {
+    const THREE = window.THREE;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    g.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(n), 1));
+    g.setAttribute('aBright', new THREE.BufferAttribute(new Float32Array(n), 1));
+    g.setAttribute('aPhase', new THREE.BufferAttribute(new Float32Array(n), 1));
+    return g;
+  }
+
+  mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  genField() {
+    const rng = this.mulberry(20260620);
+    const FN = 360;
+    this.field = [];
+    for (let i = 0; i < FN; i++) {
+      const x = -0.05 + rng() * 1.10, y = -0.05 + rng() * 1.10;
+      const size = 1.2 + rng() * 2.6;
+      this.field.push({ x, y, size, phase: rng() * 6.283, depth: 1.1 + (3.8 - size) / 2.6 });
+    }
+    // gray mesh: link each to nearest 2 neighbours (dedup)
+    const seen = new Set(); this.fieldWires = [];
+    for (let i = 0; i < FN; i++) {
+      const d = [];
+      for (let j = 0; j < FN; j++) { if (i === j) continue; const dx = this.field[i].x - this.field[j].x, dy = this.field[i].y - this.field[j].y; d.push([dx * dx + dy * dy, j]); }
+      d.sort((a, b) => a[0] - b[0]);
+      for (let k = 0; k < 2; k++) { const j = d[k][1]; const key = i < j ? i + '-' + j : j + '-' + i; if (!seen.has(key)) { seen.add(key); this.fieldWires.push([i, j]); } }
+    }
+    // each interactive node reaches into its 2 nearest field synapses
+    this.links = [];
+    this.NODES.forEach((n, ni) => {
+      const d = [];
+      this.field.forEach((f, fi) => { const dx = n.x - f.x, dy = n.y - f.y; d.push([dx * dx + dy * dy, fi]); });
+      d.sort((a, b) => a[0] - b[0]);
+      for (let k = 0; k < 2; k++) this.links.push([ni, d[k][1]]);
+    });
+  }
+
+  genNetwork() {
+    const rng = this.mulberry(77001);
+    const R = 22;
+    this.relays = [];
+    for (let i = 0; i < R; i++) this.relays.push({ x: 0.08 + rng() * 0.84, y: 0.08 + rng() * 0.84, size: 2.8 + rng() * 2.8, phase: rng() * 6.283, depth: 0.7 + rng() * 0.55 });
+    const N = this.NODES.length, total = N + R;
+    const keyIdx = {}; this.NODES.forEach((n, i) => keyIdx[n.k] = i);
+    const posOf = (i) => i < N ? this.NODES[i] : this.relays[i - N];
+    this.edges = [];
+    this.WIRES.forEach(w => this.edges.push({ a: keyIdx[w[0]], b: keyIdx[w[1]], kind: 'accent' }));
+    const seen = new Set(this.edges.map(e => e.a < e.b ? e.a + '-' + e.b : e.b + '-' + e.a));
+    for (let r = 0; r < R; r++) {
+      const ri = N + r, A = posOf(ri), d = [];
+      for (let j = 0; j < total; j++) { if (j === ri) continue; const B = posOf(j); const dx = A.x - B.x, dy = A.y - B.y; d.push([dx * dx + dy * dy, j]); }
+      d.sort((a, b) => a[0] - b[0]);
+      for (let k = 0; k < 3; k++) { const j = d[k][1]; const key = ri < j ? ri + '-' + j : j + '-' + ri; if (!seen.has(key)) { seen.add(key); this.edges.push({ a: ri, b: j, kind: 'relay' }); } }
+    }
+    this.eadj = Array.from({ length: total }, () => []);
+    this.edges.forEach(e => { this.eadj[e.a].push({ to: e.b }); this.eadj[e.b].push({ to: e.a }); });
+    this.relayEdges = this.edges.filter(e => e.kind === 'relay');
+  }
+
+  echo(src) {
+    if (src == null || src < 0 || !this.eadj) return;
+    const total = this.eadj.length;
+    const hop = new Array(total).fill(-1); hop[src] = 0;
+    const q = [src]; const now = performance.now();
+    const decay = 0.62, delay = 210, dur = 760, maxHop = 6;
+    this.impulses = this.impulses || [];
+    while (q.length) {
+      const u = q.shift(); const h = hop[u]; if (h >= maxHop) continue;
+      const strength = Math.pow(decay, h); if (strength < 0.1) continue;
+      for (const { to } of this.eadj[u]) {
+        if (hop[to] === -1) { hop[to] = h + 1; this.impulses.push({ a: u, b: to, start: now + h * delay, dur, strength, f: false }); q.push(to); }
+      }
+    }
+    if (this.flash) this.flash[src] = Math.min(1.4, (this.flash[src] || 0) + 1.0);
+  }
+
+  accent() { return this.props.accent || '#1f3d73'; }
+  accentVec() { const a = this.accent(); const THREE = window.THREE; return new THREE.Vector3(parseInt(a.slice(1, 3), 16) / 255, parseInt(a.slice(3, 5), 16) / 255, parseInt(a.slice(5, 7), 16) / 255); }
+  motion() { return this.reduced ? 0 : (this.props.motion ?? 0.55); }
+
+  bgFrag() {
+    return `precision highp float; varying vec2 vUv;
+    uniform float uTime; uniform vec2 uRes; uniform vec2 uMouse; uniform float uData; uniform float uTrain; uniform vec3 uAccent; uniform float uMotion;
+    vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;} vec2 mod289(vec2 x){return x-floor(x*(1.0/289.0))*289.0;}
+    vec3 permute(vec3 x){return mod289(((x*34.0)+1.0)*x);}
+    float snoise(vec2 v){ const vec4 C=vec4(0.211324865405187,0.366025403784439,-0.577350269189626,0.024390243902439);
+      vec2 i=floor(v+dot(v,C.yy)); vec2 x0=v-i+dot(i,C.xx); vec2 i1=(x0.x>x0.y)?vec2(1.0,0.0):vec2(0.0,1.0);
+      vec4 x12=x0.xyxy+C.xxzz; x12.xy-=i1; i=mod289(i);
+      vec3 p=permute(permute(i.y+vec3(0.0,i1.y,1.0))+i.x+vec3(0.0,i1.x,1.0));
+      vec3 m=max(0.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.0); m=m*m; m=m*m;
+      vec3 x=2.0*fract(p*C.www)-1.0; vec3 h=abs(x)-0.5; vec3 ox=floor(x+0.5); vec3 a0=x-ox;
+      m*=1.79284291400159-0.85373472095314*(a0*a0+h*h);
+      vec3 g; g.x=a0.x*x0.x+h.x*x0.y; g.yz=a0.yz*x12.xz+h.yz*x12.yw; return 130.0*dot(m,g); }
+    float fbm(vec2 p){ float s=0.0,a=0.5; for(int i=0;i<5;i++){ s+=a*snoise(p); p*=2.0; a*=0.5; } return s; }
+    void main(){
+      vec2 uv=vUv; vec2 asp=vec2(uRes.x/uRes.y,1.0); vec2 p=uv*asp*1.35;
+      float t=uTime*0.035*(0.3+uMotion);
+      vec2 q=vec2(fbm(p+t), fbm(p+vec2(5.2,1.3)-t));
+      vec2 rr=vec2(fbm(p+q*1.2+uMouse*0.35+t*0.6), fbm(p+q*1.2+vec2(8.3,2.8)));
+      float f=fbm(p+rr*1.1); float field=smoothstep(-0.6,0.95,f);
+      vec3 white=vec3(0.992,0.992,0.990);
+      vec3 col=mix(white, mix(white,uAccent,0.18), field*(0.07+uData*0.10));
+      float d=distance(uv, vec2(0.5));
+      col=mix(col, mix(col,uAccent,0.05), smoothstep(0.55,0.0,d)*uTrain*0.5*(0.3+uMotion));
+      gl_FragColor=vec4(col,1.0);
+    }`;
+  }
+  ptVert() {
+    return `attribute float aSize; attribute float aBright; attribute float aPhase; varying float vBright;
+    uniform float uTime; uniform float uMotion; uniform float uPx;
+    void main(){ vBright=aBright; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv;
+      float pulse=1.0+0.16*sin(uTime*1.6+aPhase)*uMotion; gl_PointSize=aSize*pulse*uPx; }`;
+  }
+  ptFrag() {
+    return `precision highp float; varying float vBright; uniform vec3 uColor;
+    void main(){ vec2 c=gl_PointCoord-0.5; float d=length(c); float core=smoothstep(0.5,0.0,d);
+      float a=pow(core,1.5)*vBright; if(a<0.003) discard; gl_FragColor=vec4(uColor,a); }`;
+  }
+  qVert() {
+    return `attribute float aSize; attribute float aBright; attribute float aPhase; varying float vBright; varying float vPhase;
+    uniform float uTime; uniform float uMotion; uniform float uPx;
+    void main(){ vBright=aBright; vPhase=aPhase; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv;
+      float breathe=1.0+0.10*sin(uTime*0.8+aPhase)*uMotion; gl_PointSize=aSize*breathe*uPx; }`;
+  }
+  qFrag() {
+    return `precision highp float; varying float vBright; varying float vPhase; uniform vec3 uColor; uniform float uTime; uniform float uMotion;
+    void main(){
+      vec2 c=gl_PointCoord-0.5; float d=length(c)*2.0;
+      float ang=atan(c.y,c.x);
+      float sides=6.0; float seg=6.2831853/sides;
+      float aa=mod(ang + uTime*0.05 + vPhase, seg) - seg*0.5;
+      float poly=cos(seg*0.5)/cos(aa);
+      float wob=0.80 + 0.14*sin(ang*3.0 + uTime*0.6 + vPhase*2.0) + 0.06*sin(ang*5.0 - uTime*0.4);
+      float edge=poly*wob;
+      if(d>edge+0.04) discard;
+      float inside=smoothstep(edge, edge-0.12, d);
+      float rim=smoothstep(0.05,0.0,abs(d-edge));
+      float wave=0.5+0.5*sin(d*12.0 - uTime*2.0 + vPhase*3.0);
+      float wave2=0.5+0.5*sin(d*22.0 + uTime*1.3 - vPhase*1.7);
+      float fieldv=mix(wave,wave2,0.4);
+      float a=fieldv*inside*0.14*vBright*(0.35+uMotion) + rim*0.30*vBright;
+      if(a<0.002) discard; gl_FragColor=vec4(uColor,a); }`;
+  }
+
+  layoutBg() { this.bg.position.set(this.W / 2, this.H / 2, -5); this.bg.scale.set(this.W, this.H, 1); }
+
+  resize() {
+    if (!this.renderer) return;
+    this.W = window.innerWidth; this.H = window.innerHeight;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.renderer.setPixelRatio(dpr); this.renderer.setSize(this.W, this.H, false);
+    this.cam.right = this.W; this.cam.bottom = this.H; this.cam.updateProjectionMatrix();
+    this.uni.uRes.value.set(this.W, this.H); this.uni.uPx.value = dpr; this.layoutBg();
+  }
+
+  // ---------- per-frame ----------
+  loop() { this.draw(performance.now()); this.raf = requestAnimationFrame(() => this.loop()); }
+
+  nodePos(n, mxp, myp, breath) {
+    const W = this.W, H = this.H, pr = this.prof(n.grp);
+    const cx = 0.5 + (n.x - 0.5) * 1.08, cy = 0.5 + (n.y - 0.5) * 1.08;
+    const sx = cx * W + mxp * pr.depth * 30 + (cx - 0.5) * breath * 16;
+    const sy = cy * H + myp * pr.depth * 22 + (cy - 0.5) * breath * 12;
+    return { sx, sy };
+  }
+
+  draw(now) {
+    if (!this.renderer) return;
+    const W = this.W, H = this.H;
+    const motion = this.motion();
+    const t = this.frozen ? 9.2e6 : (now - this.t0);
+    const rev = 1;
+
+    const dN = this.cfg.use_full ? 1 : Math.min(1, this.cfg.max_sources / 48);
+    const tN = Math.min(1, this.cfg.wall / 86400);
+
+    // uniforms (read tweaks live)
+    this.uni.uTime.value = t / 1000;
+    this.uni.uMouse.value.set(this.mx, this.my);
+    this.uni.uData.value = dN; this.uni.uTrain.value = tN;
+    this.uni.uMotion.value = motion;
+    this.uni.uAccent.value.copy(this.accentVec());
+    this.uni.uPx.value = this.renderer.getPixelRatio();
+    this.wMat.color.set(this.accent());
+    this.wMat.opacity = Math.min(0.6, 0.34 + dN * 0.16 + tN * 0.06);
+
+    const mxp = (this.mx - 0.5), myp = (this.my - 0.5);
+    const breath = Math.sin(t / 9000) * motion;
+
+    // ---- gray ambient field ----
+    const fp = this.gField.attributes.position.array, fs = this.gField.attributes.aSize.array, fb = this.gField.attributes.aBright.array, fph = this.gField.attributes.aPhase.array;
+    this.field.forEach((f, i) => {
+      const sx = f.x * W + mxp * f.depth * 30 + (f.x - 0.5) * breath * 16;
+      const sy = f.y * H + myp * f.depth * 22 + (f.y - 0.5) * breath * 12;
+      f.sx = sx; f.sy = sy;
+      const j = i * 3; fp[j] = sx; fp[j + 1] = sy; fp[j + 2] = -2;
+      fs[i] = f.size; fb[i] = 0.22 + 0.11 * Math.sin(t / 1400 + f.phase); fph[i] = f.phase;
+    });
+    ['position', 'aSize', 'aBright', 'aPhase'].forEach(a => this.gField.attributes[a].needsUpdate = true);
+    const fw = this.gFieldWire.attributes.position.array;
+    this.fieldWires.forEach((w, i) => { const a = this.field[w[0]], b = this.field[w[1]]; const k = i * 6; fw[k] = a.sx; fw[k + 1] = a.sy; fw[k + 2] = -2; fw[k + 3] = b.sx; fw[k + 4] = b.sy; fw[k + 5] = -2; });
+    this.gFieldWire.attributes.position.needsUpdate = true;
+    this.wGrayMat.opacity = 0.07 + 0.03 * motion;
+
+    // ---- relays (visual-only synapses) ----
+    const N0 = this.NODES.length;
+    const rcp = this.gRelayCore.attributes.position.array, rcs = this.gRelayCore.attributes.aSize.array, rcb = this.gRelayCore.attributes.aBright.array, rcph = this.gRelayCore.attributes.aPhase.array;
+    const rhp = this.gRelayHalo.attributes.position.array, rhs = this.gRelayHalo.attributes.aSize.array, rhb = this.gRelayHalo.attributes.aBright.array, rhph = this.gRelayHalo.attributes.aPhase.array;
+    this.relays.forEach((rl, i) => {
+      const sx = rl.x * W + mxp * rl.depth * 30 + (rl.x - 0.5) * breath * 16;
+      const sy = rl.y * H + myp * rl.depth * 22 + (rl.y - 0.5) * breath * 12;
+      rl.sx = sx; rl.sy = sy;
+      const fl = this.flash[N0 + i] || 0;
+      const br = 0.34 + 0.11 * Math.sin(t / 1600 + rl.phase) + fl;
+      const j = i * 3;
+      rcp[j] = sx; rcp[j + 1] = sy; rcp[j + 2] = -0.2; rcs[i] = rl.size + fl * 4; rcb[i] = br; rcph[i] = rl.phase;
+      rhp[j] = sx; rhp[j + 1] = sy; rhp[j + 2] = -0.2; rhs[i] = rl.size * 5 + fl * 14; rhb[i] = 0.07 + fl * 0.22; rhph[i] = rl.phase;
+    });
+    ['position', 'aSize', 'aBright', 'aPhase'].forEach(a => { this.gRelayCore.attributes[a].needsUpdate = true; this.gRelayHalo.attributes[a].needsUpdate = true; });
+
+    // ---- interactive synapses + quantum field ----
+    const cp = this.gCore.attributes.position.array, cs = this.gCore.attributes.aSize.array, cb = this.gCore.attributes.aBright.array, cph = this.gCore.attributes.aPhase.array;
+    const hp = this.gHalo.attributes.position.array, hs = this.gHalo.attributes.aSize.array, hb = this.gHalo.attributes.aBright.array, hph = this.gHalo.attributes.aPhase.array;
+    const qp = this.gQuantum.attributes.position.array, qs = this.gQuantum.attributes.aSize.array, qb = this.gQuantum.attributes.aBright.array, qph = this.gQuantum.attributes.aPhase.array;
+    this.NODES.forEach((n, i) => {
+      const pr = this.prof(n.grp);
+      const p = this.nodePos(n, mxp, myp, breath); n.sx = p.sx; n.sy = p.sy; n.hitR = Math.max(pr.size, 16) + 8;
+      let bright = pr.bright;
+      if (n.k === 'harvest') bright = 0.55 + dN * 0.5;
+      if (n.k === 'devotion') bright = 0.55 + tN * 0.5;
+      if (n.k === 'launch') bright = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(t / 900));
+      const active = this.activeKey === n.k, hover = this.hoverKey === n.k;
+      if (hover) bright = Math.min(1.3, bright + 0.35);
+      if (active) bright = Math.min(1.4, bright + 0.5);
+      bright = Math.min(1.7, bright + (this.flash[i] || 0));
+      const phase = i * 1.3, j = i * 3;
+      cp[j] = p.sx; cp[j + 1] = p.sy; cp[j + 2] = 0;
+      cs[i] = pr.size * (active ? 1.5 : hover ? 1.25 : 1); cb[i] = bright * rev; cph[i] = phase;
+      hp[j] = p.sx; hp[j + 1] = p.sy; hp[j + 2] = 0;
+      hs[i] = pr.halo * (active ? 1.3 : 1); hb[i] = (0.10 + bright * 0.12) * rev; hph[i] = phase;
+      qp[j] = p.sx; qp[j + 1] = p.sy; qp[j + 2] = -1;
+      qs[i] = pr.quantum * (active ? 1.4 : hover ? 1.15 : 1); qb[i] = (0.5 + bright * 0.6) * rev; qph[i] = phase;
+    });
+    ['position', 'aSize', 'aBright', 'aPhase'].forEach(a => { this.gCore.attributes[a].needsUpdate = true; this.gHalo.attributes[a].needsUpdate = true; this.gQuantum.attributes[a].needsUpdate = true; });
+
+    // interactive wires
+    const wp = this.gWire.attributes.position.array;
+    this.WIRES.forEach((w, i) => {
+      const a = this.nodeByKey[w[0]], b = this.nodeByKey[w[1]];
+      const k = i * 6;
+      wp[k] = a.sx; wp[k + 1] = a.sy; wp[k + 2] = 0.5; wp[k + 3] = b.sx; wp[k + 4] = b.sy; wp[k + 5] = 0.5;
+    });
+    this.gWire.attributes.position.needsUpdate = true;
+
+    // interactive -> field links
+    const lp = this.gLink.attributes.position.array;
+    this.links.forEach((l, i) => { const a = this.NODES[l[0]], b = this.field[l[1]]; const k = i * 6; lp[k] = a.sx; lp[k + 1] = a.sy; lp[k + 2] = -1.5; lp[k + 3] = b.sx; lp[k + 4] = b.sy; lp[k + 5] = -1.5; });
+    this.gLink.attributes.position.needsUpdate = true;
+
+    // relay network wires
+    const posOf = (k) => k < N0 ? this.NODES[k] : this.relays[k - N0];
+    const rwp = this.gRelayWire.attributes.position.array;
+    this.relayEdges.forEach((e, i) => { const a = posOf(e.a), b = posOf(e.b); const k = i * 6; rwp[k] = a.sx; rwp[k + 1] = a.sy; rwp[k + 2] = -0.4; rwp[k + 3] = b.sx; rwp[k + 4] = b.sy; rwp[k + 5] = -0.4; });
+    this.gRelayWire.attributes.position.needsUpdate = true;
+    this.wRelayMat.opacity = 0.15 + 0.06 * motion;
+
+    // echo impulses: light bleeds forward & backward along the wire, scaled by decay
+    const ep = this.gEcho.attributes.position.array, es = this.gEcho.attributes.aSize.array, eb = this.gEcho.attributes.aBright.array, eph = this.gEcho.attributes.aPhase.array;
+    const MAXI = this.gEcho.attributes.aSize.count, GP = 11;
+    this.impulses = this.impulses.filter(im => now < im.start + im.dur);
+    let ei = 0;
+    for (const im of this.impulses) {
+      const tt = (now - im.start) / im.dur;
+      if (tt < 0 || tt > 1) continue;
+      const a = posOf(im.a), b = posOf(im.b);
+      if (!a || !b || a.sx == null || b.sx == null) continue;
+      const head = Math.sin(Math.PI * tt);
+      const gw = 0.14 + 0.22 * im.strength;
+      for (let k = 0; k < GP; k++) {
+        if (ei >= MAXI) break;
+        const u = (k / (GP - 1) - 0.5) * 2;
+        const pos = tt + u * gw;
+        if (pos < 0 || pos > 1) continue;
+        const taper = 1 - Math.abs(u);
+        const j = ei * 3;
+        ep[j] = a.sx + (b.sx - a.sx) * pos; ep[j + 1] = a.sy + (b.sy - a.sy) * pos; ep[j + 2] = 2;
+        es[ei] = 3.5 + im.strength * 4 * taper;
+        eb[ei] = Math.min(1.5, im.strength * 1.2) * head * taper * taper;
+        eph[ei] = 0;
+        ei++;
+      }
+      if (tt > 0.88 && !im.f) { im.f = true; this.flash[im.b] = Math.min(1.5, (this.flash[im.b] || 0) + im.strength * 0.9); }
+    }
+    for (; ei < MAXI; ei++) { es[ei] = 0; eb[ei] = 0; }
+    ['position', 'aSize', 'aBright', 'aPhase'].forEach(a => this.gEcho.attributes[a].needsUpdate = true);
+    for (let i = 0; i < this.flash.length; i++) this.flash[i] *= 0.92;
+
+    // pulses travelling along wires
+    const pp = this.gPulse.attributes.position.array, ps = this.gPulse.attributes.aSize.array, pb = this.gPulse.attributes.aBright.array, pph = this.gPulse.attributes.aPhase.array;
+    const speed = (0.00007 + 0.00010 * tN) * (0.35 + motion);
+    this.WIRES.forEach((w, i) => {
+      const a = this.nodeByKey[w[0]], b = this.nodeByKey[w[1]];
+      const tt = ((t * speed) + i * 0.37) % 1;
+      const fade = Math.sin(Math.PI * tt);
+      const j = i * 3;
+      pp[j] = a.sx + (b.sx - a.sx) * tt; pp[j + 1] = a.sy + (b.sy - a.sy) * tt; pp[j + 2] = 1;
+      ps[i] = 5.5; pb[i] = (0.05 + (dN + tN) * 0.4) * fade * rev * (motion > 0 ? 1 : 0); pph[i] = i;
+    });
+    this.gPulse.attributes.position.needsUpdate = this.gPulse.attributes.aSize.needsUpdate = this.gPulse.attributes.aBright.needsUpdate = this.gPulse.attributes.aPhase.needsUpdate = true;
+
+    this.renderer.render(this.scene, this.cam);
+    this.positionOverlay(rev);
+  }
+
+  // ---------- overlay (labels + panel) ----------
+  buildLabels() {
+    this.NODES.forEach(n => {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute; left:0; top:0; transform:translate(-9999px,-9999px); pointer-events:none; white-space:nowrap; transition:opacity .34s ease;';
+      const name = document.createElement('div');
+      name.textContent = n.label;
+      const anchor = (n.grp === 'anchor' || n.grp === 'action');
+      name.style.cssText = 'font-family:\'IBM Plex Mono\',monospace; font-size:' + (anchor ? 11 : 10) + 'px; letter-spacing:0.16em; text-transform:uppercase; color:' + (anchor ? '#4a463c' : '#9a9488') + ';';
+      el.appendChild(name);
+      const val = document.createElement('div');
+      val.style.cssText = 'font-family:\'IBM Plex Mono\',monospace; font-size:13px; color:#1a1813; margin-top:2px; font-feature-settings:\'tnum\';';
+      el.appendChild(val); n.valEl = val;
+      n.labelEl = el; this.overlay.appendChild(el);
+    });
+  }
+
+  buildPanel() {
+    const p = document.createElement('div');
+    p.id = 'wp-panel';
+    p.style.cssText = 'position:absolute; left:0; top:0; transform:translate(-9999px,-9999px); pointer-events:none; display:none;';
+    p.addEventListener('click', (e) => e.stopPropagation());
+    p.addEventListener('mousedown', (e) => e.stopPropagation());
+    this.panel = p; this.overlay.appendChild(p);
+  }
+
+  positionOverlay(rev) {
+    const showAll = this.props.showSynapseLabels ?? false;
+    this.NODES.forEach(n => {
+      const el = n.labelEl; if (!el) return;
+      const off = (n.grp === 'anchor' || n.grp === 'action') ? 16 : 12;
+      el.style.transform = 'translate(' + (n.sx + off) + 'px,' + (n.sy - 8) + 'px)';
+      const anchor = (n.grp === 'anchor' || n.grp === 'action');
+      let vis = anchor || showAll || this.hoverKey === n.k || this.activeKey === n.k;
+      if (this.activeKey === n.k) vis = false; // hidden behind open panel
+      el.style.opacity = vis ? String(Math.min(1, rev)) : '0';
+      if (n.valEl) {
+        if (n.k === 'harvest') n.valEl.textContent = this.cfg.use_full ? 'all' : String(this.cfg.max_sources);
+        else if (n.k === 'devotion') n.valEl.textContent = this.fmtWall(this.cfg.wall);
+        else n.valEl.textContent = '';
+        n.valEl.style.display = (n.k === 'harvest' || n.k === 'devotion') ? 'block' : 'none';
+      }
+    });
+    if (this.activeKey) {
+      const n = this.nodeByKey[this.activeKey];
+      const leftSide = n.sx > this.W * 0.58;
+      const gap = 22;
+      if (leftSide) { this.panel.style.transform = 'translate(' + (n.sx - gap) + 'px,' + n.sy + 'px)'; this.panel.style.right = ''; }
+      else { this.panel.style.transform = 'translate(' + (n.sx + gap) + 'px,' + n.sy + 'px)'; }
+    }
+  }
+
+  // ---------- interaction ----------
+  onMove(e) {
+    const rect = this.root.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    this.mx = x / this.W; this.my = y / this.H;
+    const hit = this.hitTest(x, y);
+    this.hoverKey = hit ? hit.k : null;
+    this.root.style.cursor = hit ? 'pointer' : 'default';
+  }
+  onClick(e) {
+    const rect = this.root.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const hit = this.hitTest(x, y);
+    if (!hit) { this.closeNode(); return; }
+    this.echo(this.NODES.indexOf(hit));
+    if (hit.ctrl === 'action') { this.closeNode(); this.launch(); return; }
+    if (this.activeKey === hit.k) { this.closeNode(); return; }
+    this.openNode(hit);
+  }
+  hitTest(x, y) {
+    let best = null, bd = 1e9;
+    this.NODES.forEach(n => {
+      if (n.sx == null) return;
+      const d = Math.hypot(x - n.sx, y - n.sy);
+      if (d < (n.hitR || 20) && d < bd) { bd = d; best = n; }
+    });
+    return best;
+  }
+
+  openNode(n) {
+    this.activeKey = n.k;
+    const p = this.panel; p.innerHTML = '';
+    p.style.display = 'block'; p.style.pointerEvents = 'auto';
+    const leftSide = n.sx > this.W * 0.58;
+    // stem + box wrapper
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; align-items:center; transform:translateY(-50%);' + (leftSide ? ' flex-direction:row-reverse; transform:translate(-100%,-50%);' : '');
+    const stem = document.createElement('div');
+    stem.style.cssText = 'height:1px; width:18px; background:' + this.accent() + '; opacity:.4; flex:none;';
+    const box = document.createElement('div');
+    box.style.cssText = 'overflow:hidden; white-space:nowrap; background:rgba(255,255,255,0.9); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border:1px solid #e6e6ea; border-radius:14px; box-shadow:0 12px 40px rgba(26,24,19,0.08); box-sizing:border-box;';
+    const inner = document.createElement('div');
+    inner.style.cssText = 'padding:16px 20px; min-width:240px;';
+    const head = document.createElement('div');
+    head.textContent = n.label;
+    head.style.cssText = 'font-family:\'IBM Plex Mono\',monospace; font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:#9a9488; margin-bottom:12px;';
+    inner.appendChild(head);
+    inner.appendChild(this.buildControl(n));
+    box.appendChild(inner);
+    wrap.appendChild(stem); wrap.appendChild(box);
+    p.appendChild(wrap);
+    // animate width open
+    this.animateWidth(box, true);
+    this.positionOverlay(1);
+  }
+  closeNode() {
+    if (!this.activeKey) return;
+    this.activeKey = null;
+    this.panel.style.pointerEvents = 'none';
+    const wrap = this.panel.firstElementChild;
+    const box = wrap ? wrap.lastElementChild : null;
+    const finish = () => { this.panel.style.display = 'none'; this.panel.innerHTML = ''; };
+    if (box && !this.reduced) { this.animateWidth(box, false, finish); setTimeout(finish, 560); }
+    else finish();
+  }
+  animateWidth(box, open, cb) {
+    cancelAnimationFrame(box._raf);
+    if (this.reduced) { box.style.width = open ? 'auto' : '0'; box.style.opacity = open ? '1' : '0'; if (!open && cb) cb(); return; }
+    const target = open ? box.scrollWidth : 0;
+    const start = open ? 0 : box.offsetWidth;
+    box.style.width = start + 'px';
+    const t0 = performance.now(), dur = 480, ease = (t) => 1 - Math.pow(1 - t, 3);
+    const step = (now) => {
+      const pr = Math.min(1, (now - t0) / dur), e = ease(pr);
+      box.style.width = (start + (target - start) * e) + 'px';
+      box.style.opacity = open ? String(0.2 + 0.8 * e) : String(1 - e);
+      if (pr < 1) box._raf = requestAnimationFrame(step);
+      else { if (open) box.style.width = 'auto'; else if (cb) cb(); }
+    };
+    box._raf = requestAnimationFrame(step);
+  }
+
+  // ---------- controls ----------
+  el(tag, css, text) { const e = document.createElement(tag); if (css) e.style.cssText = css; if (text != null) e.textContent = text; return e; }
+  fmtWall(s) { return s < 3600 ? ('\u2248\u00a0' + Math.round(s / 60) + 'm') : ('\u2248\u00a0' + (s / 3600).toFixed(s < 36000 ? 1 : 0) + 'h'); }
+  wallFrom(v) { return Math.round(300 * Math.pow(86400 / 300, v / 100)); }
+
+  buildControl(n) {
+    const C = this.cfg;
+    const numB = (get, set, min, max, step, fmt) => ({ kind: 'num', display: () => fmt(get()), frac: () => (get() - min) / (max - min), setFrac: (f) => { let v = min + f * (max - min); v = Math.round(v / step) * step; set(Math.max(min, Math.min(max, +v.toFixed(6)))); }, dec: () => set(Math.max(min, +(get() - step).toFixed(6))), inc: () => set(Math.min(max, +(get() + step).toFixed(6))) });
+    const numU = (get, set, step, min, fmt) => ({ kind: 'num', display: () => fmt(get()), frac: () => null, dec: () => set(Math.max(min, get() - step)), inc: () => set(get() + step) });
+    const enumC = (opts, getI, setI) => ({ kind: 'enum', display: () => (opts[getI()] ? opts[getI()].label : '\u2014'), frac: () => opts.length > 1 ? getI() / (opts.length - 1) : 0, ticks: opts.length > 1 ? opts.map((_, i) => i / (opts.length - 1)) : null, setFrac: (f) => setI(Math.round(f * (opts.length - 1))), dec: () => setI(Math.max(0, getI() - 1)), inc: () => setI(Math.min(opts.length - 1, getI() + 1)) });
+    switch (n.k) {
+      case 'harvest': return this.abstractControl({ kind: 'num',
+        display: () => C.use_full ? 'all' : String(C.max_sources),
+        frac: () => C.use_full ? 1 : (C.max_sources - 1) / 48,
+        setFrac: (f) => { const v = Math.round(1 + f * 48); if (v >= 49) C.use_full = true; else { C.use_full = false; C.max_sources = Math.max(1, Math.min(48, v)); } },
+        dec: () => { if (C.use_full) { C.use_full = false; C.max_sources = 48; } else C.max_sources = Math.max(1, C.max_sources - 1); },
+        inc: () => { if (!C.use_full) { if (C.max_sources >= 48) C.use_full = true; else C.max_sources++; } } });
+      case 'devotion': return this.abstractControl(numB(() => C.devotion, (v) => { C.devotion = v; C.wall = this.wallFrom(v); }, 0, 100, 3, () => this.fmtWall(C.wall)));
+      case 'cascade': return this.abstractControl(numB(() => C.max_escalation_fraction, (v) => C.max_escalation_fraction = v, 0, 0.5, 0.02, (v) => Math.round(v * 100) + '%'));
+      case 'sim': return this.abstractControl(numB(() => C.claim_sim, (v) => C.claim_sim = v, 0, 1, 0.02, (v) => v.toFixed(2)));
+      case 'textw': return this.abstractControl(numB(() => C.text_proj_w, (v) => C.text_proj_w = v, 0, 1, 0.05, (v) => v.toFixed(2)));
+      case 'geomw': return this.abstractControl(numB(() => C.geom_obs_w, (v) => C.geom_obs_w = v, 0, 1, 0.05, (v) => v.toFixed(2)));
+      case 'steps': return this.abstractControl(numU(() => C.max_steps, (v) => C.max_steps = v, 10, 1, (v) => String(v)));
+      case 'records': return this.abstractControl(numU(() => C.max_records, (v) => C.max_records = v, 256, 1, (v) => String(v)));
+      case 'chunk': return this.abstractControl(numU(() => C.max_chunk_chars, (v) => C.max_chunk_chars = v, 20, 20, (v) => String(v)));
+      case 'timeout': return this.abstractControl(numU(() => C.provider_timeout, (v) => C.provider_timeout = v, 60, 30, (v) => v + 's'));
+      case 'paradigm': { const names = ['smoke', 'pilot', 'standard', 'large', 'eternal']; const opts = names.map(v => ({ v, label: v })); return this.abstractControl(enumC(opts, () => Math.max(0, names.indexOf(C.preset)), (i) => this.applyPreset(names[i]))); }
+      case 'quality': { const opts = [{ v: 'none', label: 'pure local' }, { v: 'deterministic', label: 'deterministic' }, { v: 'remote', label: 'remote' }]; return this.abstractControl(enumC(opts, () => Math.max(0, opts.findIndex(o => o.v === C.escalation_mode)), (i) => { C.escalation_mode = opts[i].v; })); }
+      case 'geometry': { const opts = [{ v: '', label: 'default' }].concat(this.geometryPresets.map(g => ({ v: g, label: g.split('/').pop().replace('.yaml', '') }))); return this.abstractControl(enumC(opts, () => { const i = opts.findIndex(o => o.v === C.geometry_preset); return i < 0 ? 0 : i; }, (i) => { C.geometry_preset = opts[i].v; })); }
+      case 'extraction': {
+        const opts = [{ v: '', label: 'name below \u2193' }].concat(this.models.map(m => ({ v: m.value, label: m.label.replace(' (auto-drawn)', '').replace(' \u2713', '').slice(0, 26) })));
+        const ctrl = this.abstractControl(enumC(opts, () => { const i = opts.findIndex(o => o.v === C.extraction_model); return i < 0 ? 0 : i; }, (i) => { C.extraction_model = opts[i].v; if (opts[i].v) C.custom_model = opts[i].v; }));
+        const extra = this.el('div', 'margin-top:16px;');
+        const det = this.el('span', '', 'detect installed'); det.className = 'wp-chip'; det.style.display = 'block'; det.style.textAlign = 'center'; det.onclick = () => this.detectModels(true);
+        const cust = document.createElement('input'); cust.className = 'wp-in'; cust.placeholder = 'or name a hf repo / .gguf path'; cust.value = C.custom_model; cust.style.cssText = 'width:100%; margin-top:10px; text-align:center;';
+        cust.oninput = () => { C.custom_model = cust.value; };
+        const st = this.el('div', 'font-family:\'IBM Plex Mono\',monospace; font-size:9px; color:#bdb8ac; margin-top:8px; white-space:normal; text-align:center;'); this._extStatus = st; st.textContent = this._modelMsg || '';
+        extra.appendChild(det); extra.appendChild(cust); extra.appendChild(st); ctrl.appendChild(extra); return ctrl;
+      }
+      case 'field': {
+        const extra = this.el('div', 'margin-top:14px;');
+        const tools = this.el('div', 'display:flex; gap:7px; justify-content:center;');
+        ['brave', 'firecrawl', 'fetch'].forEach(tool => { const c = this.el('span', '', tool); c.className = 'wp-chip'; c.onclick = () => this.doHarvest(tool); tools.appendChild(c); });
+        const res = this.el('div', 'font-family:\'IBM Plex Mono\',monospace; font-size:10px; color:#7a7567; margin-top:10px; max-height:80px; overflow:auto; line-height:1.5; white-space:normal; text-align:center;'); this._harvestRes = res;
+        const apply = this.el('div', 'font-family:\'IBM Plex Mono\',monospace; font-size:10px; color:' + this.accent() + '; margin-top:8px; cursor:pointer; text-decoration:underline; text-underline-offset:2px; display:none; text-align:center;', 'use the harvested as source'); apply.onclick = () => this.applyHarvest(); this._harvestApply = apply;
+        extra.appendChild(tools); extra.appendChild(res); extra.appendChild(apply);
+        return this.abstractControl({ kind: 'text', get: () => C.harvest_query, set: (v) => C.harvest_query = v, placeholder: 'ml software benchmarks 2025', extra });
+      }
+      case 'source': return this.abstractControl({ kind: 'text', get: () => C.input_path, set: (v) => C.input_path = v, placeholder: 'path to sources' });
+      case 'cutoff': return this.abstractControl({ kind: 'text', get: () => C.cutoff_date, set: (v) => C.cutoff_date = v, placeholder: 'YYYY-MM-DD' });
+      case 'pmodel': return this.abstractControl({ kind: 'text', get: () => C.primary_model, set: (v) => C.primary_model = v, placeholder: 'model name' });
+    }
+    return this.el('div', '', '');
+  }
+
+  abstractControl(spec) {
+    const col = this.el('div', 'min-width:288px;');
+    const row = this.el('div', 'display:flex; align-items:center; justify-content:space-between; gap:16px;');
+    if (spec.kind === 'text') {
+      const dash = () => this.el('div', 'width:16px; height:1px; background:#dcdce2; flex:none;');
+      const inp = document.createElement('input'); inp.className = 'wp-in';
+      inp.value = spec.get(); inp.placeholder = spec.placeholder || '';
+      inp.style.cssText = 'flex:1; text-align:center; font-size:13px; min-width:200px; border-bottom:1px solid #e6e6ea;';
+      inp.oninput = () => { spec.set(inp.value); };
+      row.appendChild(dash()); row.appendChild(inp); row.appendChild(dash());
+      col.appendChild(row);
+      if (spec.extra) col.appendChild(spec.extra);
+      return col;
+    }
+    const mk = (sym) => { const b = this.el('div', 'flex:none; width:28px; height:28px; border-radius:999px; border:1px solid #d6d6dd; display:flex; align-items:center; justify-content:center; font-family:\'IBM Plex Mono\',monospace; font-size:15px; color:#4a463c; cursor:pointer; user-select:none; transition:border-color .18s, color .18s;', sym); b.onmouseenter = () => { b.style.borderColor = this.accent(); b.style.color = this.accent(); }; b.onmouseleave = () => { b.style.borderColor = '#d6d6dd'; b.style.color = '#4a463c'; }; return b; };
+    const minus = mk('\u2212'), plus = mk('+');
+    const val = this.el('div', 'flex:1; text-align:center; font-family:\'IBM Plex Mono\',monospace; font-size:17px; color:#1a1813; letter-spacing:0.02em;');
+    const axis = this.el('div', 'position:relative; height:16px; margin-top:16px;');
+    const line = this.el('div', 'position:absolute; left:5px; right:5px; top:50%; height:1px; background:#dcdce2; transform:translateY(-50%);');
+    const fill = this.el('div', 'position:absolute; left:5px; top:50%; height:1px; background:' + this.accent() + '; transform:translateY(-50%);');
+    const dot = this.el('div', 'position:absolute; top:50%; width:11px; height:11px; border-radius:999px; background:' + this.accent() + '; transform:translate(-50%,-50%); box-shadow:0 0 0 4px rgba(31,61,115,0.10);');
+    axis.appendChild(line);
+    if (spec.ticks) spec.ticks.forEach(tf => { const tk = this.el('div', 'position:absolute; top:50%; width:3px; height:3px; border-radius:999px; background:#cdcdd4; transform:translate(-50%,-50%);'); tk.style.left = 'calc(5px + ' + tf + ' * (100% - 10px))'; axis.appendChild(tk); });
+    axis.appendChild(fill); axis.appendChild(dot);
+    const render = () => {
+      val.textContent = spec.display();
+      const f = spec.frac();
+      if (f == null) { fill.style.display = 'none'; dot.style.display = 'none'; line.style.opacity = '0.45'; }
+      else { fill.style.display = 'block'; dot.style.display = 'block'; line.style.opacity = '1'; const pct = Math.max(0, Math.min(1, f)); dot.style.left = 'calc(5px + ' + pct + ' * (100% - 10px))'; fill.style.width = 'calc(' + pct + ' * (100% - 10px))'; }
+    };
+    minus.onclick = () => { spec.dec(); render(); };
+    plus.onclick = () => { spec.inc(); render(); };
+    if (spec.setFrac) {
+      axis.style.cursor = 'pointer';
+      const setFromX = (clientX) => { const r = axis.getBoundingClientRect(); const f = (clientX - r.left - 5) / (r.width - 10); spec.setFrac(Math.max(0, Math.min(1, f))); render(); };
+      let drag = false;
+      axis.addEventListener('pointerdown', (e) => { drag = true; try { axis.setPointerCapture(e.pointerId); } catch (x) {} setFromX(e.clientX); });
+      axis.addEventListener('pointermove', (e) => { if (drag) setFromX(e.clientX); });
+      axis.addEventListener('pointerup', () => { drag = false; });
+      axis.addEventListener('pointercancel', () => { drag = false; });
+    }
+    row.appendChild(minus); row.appendChild(val); row.appendChild(plus);
+    col.appendChild(row); col.appendChild(axis);
+    if (spec.extra) col.appendChild(spec.extra);
+    render();
+    return col;
+  }
+
+  applyPreset(name) {
+    const map = { smoke: { s: 2, w: 300, st: 2, r: 24 }, pilot: { s: 6, w: 1800, st: 20, r: 256 }, standard: { s: 8, w: 7200, st: 100, r: 2048 }, large: { s: 24, w: 28800, st: 500, r: 10000 }, eternal: { s: 48, w: 86400, st: 2000, r: 50000 } };
+    const p = map[name]; if (!p) return;
+    this.cfg.preset = name; this.cfg.max_sources = p.s; this.cfg.use_full = false; this.cfg.wall = p.w;
+    this.cfg.devotion = Math.round(100 * Math.log(p.w / 300) / Math.log(86400 / 300));
+    this.cfg.max_steps = p.st; this.cfg.max_records = p.r;
+    this.poetry(name === 'eternal' ? 'the eternal measure is summoned' : 'the ' + name + ' paradigm settles in');
+  }
+
+  // ---------- poetry ----------
+  poetry(txt, hold) { const el = document.getElementById('wp-poetry'); if (!el) return; el.textContent = txt; if (!hold) { clearTimeout(this._pt); this._pt = setTimeout(() => { el.textContent = 'awaiting the measure'; }, 3800); } }
+  seek() { this.poetry('field \u2192 cascade \u2192 geometry \u2192 devotion \u2192 verdict', true); clearTimeout(this._pt); this._pt = setTimeout(() => { const el = document.getElementById('wp-poetry'); if (el) el.textContent = 'awaiting the measure'; }, 7000); }
+
+  // ---------- backend contract ----------
+  collect() {
+    const C = this.cfg;
+    const chosen = C.extraction_model || C.custom_model.trim();
+    let hf_repo = null, local_gguf_path = null;
+    if (chosen) { if (chosen.startsWith('local:') || chosen.includes('.gguf') || chosen.startsWith('/')) local_gguf_path = chosen.replace(/^local:/, ''); else hf_repo = chosen; }
+    return {
+      run_name: null, mode: (hf_repo || local_gguf_path) ? 'integrated' : 'remote',
+      corpus: { input_path: C.input_path || 'examples/corpus/ml_software_benchmarks/sources', cutoff_date: C.cutoff_date || '2026-01-01', max_chunk_chars: +C.max_chunk_chars || 420, claim_family_similarity_threshold: +C.claim_sim || 0.72 },
+      providers: { primary: { type: 'openai_compatible', model: C.primary_model || 'local-gguf', timeout_seconds: +C.provider_timeout || 600 } },
+      data_budget: { max_sources: C.use_full ? null : (+C.max_sources || null), max_escalation_fraction: +C.max_escalation_fraction || 0.25 },
+      training: { profile: C.preset, geometry_config_path: C.geometry_preset || 'configs/geometry/geometry_learned_smoke.yaml', text_projection_weight: +C.text_proj_w || 0.2, geometry_observables_weight: +C.geom_obs_w || 0.2, max_steps: +C.max_steps || null, max_records_seen: +C.max_records || null, max_wall_clock_seconds: +C.wall || null },
+      hf_repo, local_gguf_path, escalation_mode: C.escalation_mode, escalation_perplexity: C.escalation_mode === 'remote'
+    };
+  }
+  async launch() {
+    this.poetry('measure cast \u2014 the plane awakens', true);
+    try {
+      const r = await fetch('/api/launch_e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input_axt_path: (this.cfg.input_path||'artifacts/axt/pioneer.axt'), run_name: null, max_steps: (+this.cfg.max_steps||7500), seed: 13, precision: 'fp32', output_dir: 'runs' }) });
+      if (!r.ok) { this.poetry('the measure was not taken'); return; }
+      const j = await r.json(); this.runName = j.run_name;
+      const a = document.getElementById('attach_run'); if (a) a.value = j.run_name || '';
+      this.poetry('wiring under the measure', true);
+    } catch (e) { this.poetry('no plane answers \u2014 awaiting a keeper'); }
+  }
+  async attach() {
+    const a = document.getElementById('attach_run'); const name = a ? a.value.trim() : '';
+    if (!name) return;
+    try { await fetch('/api/attach', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ run_name: name }) }); this.runName = name; this.poetry('re-entered', true); setTimeout(() => this.loadAnalysis(name), 260); }
+    catch (e) { this.poetry('that run is beyond reach'); }
+  }
+  async still() { if (!this.runName) { this.poetry('nothing yet stirs'); return; } try { await fetch('/api/runs/' + encodeURIComponent(this.runName) + '/stop', { method: 'POST' }); this.poetry('stilled'); } catch (e) {} }
+  async loadAnalysis(name) { try { const r = await fetch('/api/runs/' + encodeURIComponent(name) + '/analysis'); const d = await r.json(); this.poetry('the measure is held in the white', true); } catch (e) {} }
+  async initPresets() {
+    try { const p = await (await fetch('/api/presets')).json(); this.geometryPresets = (p.geometry || []).map(it => it.path).slice(0, 6); }
+    catch (e) { this.geometryPresets = ['configs/geometry/geometry_learned_smoke.yaml', 'configs/geometry/geometry_learned_standard.yaml']; }
+    if (this.activeKey === 'geometry') this.openNode(this.nodeByKey['geometry']);
+  }
+  async detectModels(force) {
+    this._modelMsg = 'scanning local cache\u2026'; if (this._extStatus) this._extStatus.textContent = this._modelMsg;
+    try {
+      const r = await fetch('/api/models'); const data = await r.json(); const list = [];
+      (data.cached || []).forEach(m => list.push({ value: m.local_gguf_path || m.hf_repo || m.path, label: (m.display || m.path) + (m.cached ? ' \u2713' : '') }));
+      (data.suggestions || []).forEach(s => list.push({ value: s, label: s + ' (auto-drawn)' }));
+      this.models = list; this._modelMsg = 'found ' + ((data.cached || []).length) + ' held locally';
+    } catch (e) {
+      this.models = [{ value: 'Qwen/Qwen2.5-3B-Instruct-GGUF', label: 'Qwen2.5-3B-Instruct-GGUF (auto-drawn)' }, { value: 'unsloth/Llama-3.2-3B-Instruct-GGUF', label: 'Llama-3.2-3B-Instruct-GGUF (auto-drawn)' }];
+      this._modelMsg = 'no keeper to scan \u2014 name a model below';
+    }
+    if (this._extStatus) this._extStatus.textContent = this._modelMsg;
+    if (this.activeKey === 'extraction') this.openNode(this.nodeByKey['extraction']);
+  }
+  async doHarvest(tool) {
+    const C = this.cfg, box = this._harvestRes; if (!box) return;
+    if (!C.harvest_query.trim() && tool !== 'fetch') { box.textContent = 'leave a query, or a url'; return; }
+    box.textContent = 'drawing from the field via ' + tool + '\u2026';
+    try {
+      const body = { tool, query: C.harvest_query.trim(), count: 6 };
+      if (tool === 'fetch' && C.harvest_query.includes('http')) body.urls = C.harvest_query.split(',').map(s => s.trim()).filter(Boolean);
+      const r = await fetch('/api/harvest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await r.json();
+      if (data.error) { box.textContent = data.error; return; }
+      box.innerHTML = '<div style="color:#bdb8ac;">' + (data.count || 0) + ' kept in ' + (data.dir || '') + '</div>';
+      (data.items || []).slice(0, 5).forEach(it => { const d = document.createElement('div'); d.textContent = (it.title || it.url || it.saved || '').slice(0, 70); box.appendChild(d); });
+      this.lastHarvestDir = data.dir; if (this._harvestApply) this._harvestApply.style.display = 'block';
+    } catch (e) { box.textContent = 'the field did not answer (no keeper attached)'; }
+  }
+  applyHarvest() { if (this.lastHarvestDir) { this.cfg.input_path = this.lastHarvestDir; this.poetry('source set to the harvested field'); } }
+  attachInput() { const a = document.getElementById('attach_run'); if (a) a.value = ''; }
+  wireEvents() {
+    try {
+      const es = new EventSource('/api/events'); this._es = es;
+      es.onmessage = (m) => { try { const { event, data } = JSON.parse(m.data || '{}'); if ((event === 'stage' || event === 'snapshot')) { if (data.run_name) this.runName = data.run_name; if (data.stage === 'done') this.poetry('the measure is complete \u2014 the field holds', true); } if (event === 'corpus_progress' || event === 'extraction_stats') { if (data.source_count) this.cfg.max_sources = Math.max(this.cfg.max_sources, data.source_count); } if (event === 'done' && this.runName) this.loadAnalysis(this.runName); } catch (e) {} };
+      es.onerror = () => {};
+    } catch (e) {}
+  }
+}
+</script>
+</body>
+</html>
