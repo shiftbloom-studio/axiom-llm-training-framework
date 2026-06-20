@@ -46,7 +46,7 @@ try:
 except Exception:  # pragma: no cover
     orjson = None  # type: ignore[assignment]
 
-from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi import Body, FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -249,6 +249,24 @@ class LaunchRequest(BaseModel):
     local_gguf_path: str | None = None  # absolute path to .gguf for pure local no-HF
     escalation_mode: Literal["none", "deterministic", "remote"] = "none"
     escalation_perplexity: bool = False  # legacy; prefer escalation_mode="none" for local P1
+
+
+class ERunRequest(BaseModel):
+    """Minimal request for a standalone arm-E (structured-native + learned geometry) run.
+
+    Geometry wiring is fixed by the pioneer config and the trainer guard; this surface
+    only exposes the knobs that matter for an E run (data, length, seed, precision, output).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    input_axt_path: str
+    run_name: str | None = None
+    max_steps: int = 7500
+    seed: int = 13
+    precision: Literal["fp32", "bf16"] = "fp32"
+    output_dir: str = "runs"
+    learning_rate: float | None = None
+    micro_batch_size: int | None = None
 
 
 class JobStatus(BaseModel):
@@ -1160,6 +1178,123 @@ async def attach_run(payload: dict[str, Any]) -> JSONResponse:
 
 
 # --------------------------------------------------------------------------------------
+# Standalone arm-E run (structured-native + learned geometry) — consolidated surface
+# --------------------------------------------------------------------------------------
+_PIONEER_E_CONFIG = (
+    PROJECT_ROOT / "configs" / "training" / "pioneer_e_structured_native_geometry.yaml"
+)
+
+
+def _run_e_training(req: ERunRequest, stop_event: threading.Event) -> None:
+    import yaml
+
+    run_name = req.run_name or f"e_run_{int(time.time())}"
+    try:
+        with _job_lock:
+            _current_job["error"] = None
+            _current_job["run_dir"] = None
+        _persist_current_job(run_name, "running")
+        _set_stage("preparing", run_name)
+        if not _PIONEER_E_CONFIG.exists():
+            raise RuntimeError(f"E-run config not found: {_PIONEER_E_CONFIG}")
+        cfg = yaml.safe_load(_PIONEER_E_CONFIG.read_text(encoding="utf-8")) or {}
+        # Apply only the E-run knobs; geometry wiring stays exactly as the pioneer config.
+        cfg["run_name"] = run_name
+        cfg["input_axt_path"] = req.input_axt_path
+        cfg["max_steps"] = int(req.max_steps)
+        cfg["seed"] = int(req.seed)
+        cfg["precision"] = req.precision
+        cfg["output_dir"] = req.output_dir
+        budget = dict(cfg.get("compute_budget_config") or {})
+        budget["max_train_steps"] = int(req.max_steps)
+        cfg["compute_budget_config"] = budget
+        if req.learning_rate is not None:
+            cfg["learning_rate"] = float(req.learning_rate)
+        if req.micro_batch_size is not None:
+            mb = max(1, int(req.micro_batch_size))
+            cfg["micro_batch_size"] = mb
+            cfg["global_batch_size"] = mb
+            cfg["gradient_accumulation_steps"] = 1
+        run_dir = RUNS_ROOT / run_name
+        run_dir.mkdir(parents=True, exist_ok=True)
+        derived = run_dir / "e_run.yaml"
+        derived.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+        with _job_lock:
+            _current_job["run_dir"] = str(run_dir)
+        _append_log("[ui] Arm E — structured-native + learned geometry")
+        _append_log(
+            f"[ui] data: {req.input_axt_path}  steps: {req.max_steps}  precision: {req.precision}"
+        )
+        _append_log(f"[ui] derived config: {derived}")
+        _set_stage("training", run_name)
+        cmd = [str(PROJECT_ROOT / "bin" / "axiom"), "train", "run", str(derived)]
+        _append_log(f"[ui] $ {' '.join(cmd)}")
+        proc = subprocess.Popen(
+            cmd,
+            cwd=PROJECT_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        if proc.stdout is not None:
+            for raw in proc.stdout:
+                if stop_event.is_set():
+                    proc.terminate()
+                    _append_log("[ui] stop requested — terminating E run")
+                    break
+                line = raw.rstrip()
+                if line:
+                    _append_log(line)
+        rc = proc.wait()
+        if stop_event.is_set():
+            _persist_current_job(run_name, "stopped")
+            _set_stage("stopped", run_name)
+        elif rc == 0:
+            arm_dir = run_dir / "arms" / "E_structured_native_geometry"
+            _append_log(f"[ui] E run complete — checkpoints: {arm_dir}/checkpoints/")
+            _persist_current_job(run_name, "done")
+            _set_stage("done", run_name)
+            asyncio.run(bus.publish("done", {"run_dir": str(run_dir), "run_name": run_name}))
+        else:
+            raise RuntimeError(
+                f"axiom train run exited with code {rc}. If the geometry guard fired, the model "
+                "config is not in geometry_provider_injected mode (see log above)."
+            )
+    except Exception as e:  # noqa: BLE001
+        with _job_lock:
+            _current_job["error"] = str(e)
+        _append_log(f"[ui][ERROR] {e}")
+        _persist_current_job(run_name, "error")
+        asyncio.run(bus.publish("error", {"message": str(e)}))
+    finally:
+        with _job_lock:
+            _current_job["thread"] = None
+            _current_job["stop_event"] = None
+
+
+@app.post("/api/launch_e")
+async def launch_e(req: ERunRequest) -> JSONResponse:
+    if not req.input_axt_path or not req.input_axt_path.strip():
+        raise HTTPException(400, "input_axt_path (compiled .axt bundle) is required for an E run.")
+    with _job_lock:
+        if _current_job.get("thread"):
+            raise HTTPException(409, "A job is already running. Stop it first.")
+        stop_ev = threading.Event()
+        req.run_name = req.run_name or f"e_run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        t = threading.Thread(target=_run_e_training, args=(req, stop_ev), daemon=True)
+        _current_job["thread"] = t
+        _current_job["stop_event"] = stop_ev
+        _current_job["logs"].clear()
+        _current_job["stage"] = "starting"
+        _current_job["run_name"] = req.run_name
+        t.start()
+    _persist_current_job(req.run_name, "starting", datetime.utcnow().isoformat() + "Z")
+    _append_log(f"[ui] Launched arm-E run as {req.run_name}")
+    return JSONResponse({"ok": True, "run_name": req.run_name})
+
+
+# --------------------------------------------------------------------------------------
 # Config preparation (pure, returns everything needed for repro or manual launch)
 # --------------------------------------------------------------------------------------
 @app.post("/api/config/prepare")
@@ -1774,12 +1909,24 @@ async def get_verdict(run_name: str) -> JSONResponse:
 # The template is 100% self-contained (CDNs + inline JS canvas for the fine-art viz).
 # --------------------------------------------------------------------------------------
 def _load_index_html() -> str:
-    tmpl = HERE / "templates" / "index.html"
-    if tmpl.exists():
-        return tmpl.read_text(encoding="utf-8", errors="replace")
+    # Consolidated arm-E run surface is the default; the original full-pipeline
+    # page stays at templates/index.html as a fallback.
+    for name in ("e_run.html", "index.html"):
+        tmpl = HERE / "templates" / name
+        if tmpl.exists():
+            return tmpl.read_text(encoding="utf-8", errors="replace")
     return (
         "<!doctype html><title>Axiom UI</title><body><p>Optional UI — template missing.</p></body>"
     )
+
+
+@app.get("/support.js")
+async def support_js() -> Response:
+    # Serves the White Plane design runtime so e_run.html (the exact .dc.html) boots.
+    p = HERE / "templates" / "support.js"
+    if not p.exists():
+        raise HTTPException(404, "support.js missing")
+    return Response(content=p.read_text(encoding="utf-8"), media_type="application/javascript")
 
 
 @app.get("/", response_class=HTMLResponse)
