@@ -50,6 +50,9 @@ class GeometryConfig(BaseModel):
     fiber_dim: int = 16
     geometry_feature_dim: int = 64
     connection_rank: int | None = None
+    connection_hidden: int = 0
+    connection_scale: float = 1.0
+    connection_max_norm: float = 4.0
     max_transition_types: int = 16
     max_relation_types: int = 128
     max_node_types: int = 16

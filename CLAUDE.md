@@ -6,6 +6,7 @@ never diverge.
 
 ## Entry points
 
+- **Highest-order paradigm (read first; supersedes everything): [docs/concept/HKR_HIGHEST_ORDER_PARADIGM.md](docs/concept/HKR_HIGHEST_ORDER_PARADIGM.md)**
 - Navigation: [docs/README.md](docs/README.md)
 - Concept + owner decisions + guardrails: [docs/concept/CONCEPT.md](docs/concept/CONCEPT.md)
 - Decisions (ADRs): [docs/concept/DECISIONS.md](docs/concept/DECISIONS.md)
@@ -13,6 +14,7 @@ never diverge.
 
 ## Reminders
 
+- **Highest-order paradigm wins.** [docs/concept/HKR_HIGHEST_ORDER_PARADIGM.md](docs/concept/HKR_HIGHEST_ORDER_PARADIGM.md) supersedes every other doc and reminder. If anything implies an invariant fact-core or a closed/low-dimensional context field, the paradigm overrules it — correct toward it.
 - **Python 3.14 only.** The code uses PEP 695 `type` aliases and PEP 758 parenthesis-free
   `except A, B:` — these are valid on 3.14, not bugs. Run with a 3.14 interpreter
   (`uv python install 3.14`); don't flag or "fix" that syntax.

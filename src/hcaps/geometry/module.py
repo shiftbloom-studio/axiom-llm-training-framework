@@ -80,11 +80,11 @@ class LearnedGeometryModule(nn.Module):
         # outputs back to the caller's dtype at its boundary.
         with torch.autocast(device_type=node_states.device.type, enabled=False):
             fiber_state = self.fiber_projection(node_states.float())
-            relation_type_ids = _context_relation_ids(graph_batch)
-            connection = self.connection(
-                graph_batch.context_transition_type_ids,
-                relation_type_ids=relation_type_ids,
-            )
+            # Open, time-aware context: the connection is generated from continuous
+            # per-edge features (endpoint fiber states + their temporal features), not an
+            # enumerated type table, so the transport can MOVE the core along time.
+            edge_context = _edge_context(fiber_state, graph_batch)
+            connection = self.connection(edge_context)
             path_transports = compose_path_transport(
                 connection.transport_matrices,
                 graph_batch.path_edge_index,
@@ -364,13 +364,44 @@ def _ensure_loops(
     )
 
 
-def _context_relation_ids(graph_batch: ClaimFieldGraphBatch) -> Tensor | None:
-    no_relation_types = graph_batch.relation_type_ids.numel() == 0
-    no_context_types = graph_batch.context_transition_type_ids.numel() == 0
-    if no_relation_types or no_context_types:
-        return None
-    repeats = graph_batch.context_transition_type_ids.numel()
-    return graph_batch.relation_type_ids[:1].expand(repeats)
+def _edge_context(fiber_state: Tensor, graph_batch: ClaimFieldGraphBatch) -> Tensor:
+    """Continuous, open per-context-edge feature: endpoint fibers + their temporal scalars.
+
+    No enumerated transition/relation type ids; the context shift is described by the
+    actual (learned, continuous) endpoint representations and their time, so the space
+    of contexts is open and time enters every transport (the core can drift).
+    """
+    n = fiber_state.shape[-1]
+    cei = graph_batch.context_edge_index
+    if cei.numel() == 0:
+        return fiber_state.new_zeros((0, 2 * n + 2))
+    num_nodes = fiber_state.shape[0]
+    src = cei[0].clamp(min=0, max=max(0, num_nodes - 1))
+    tgt = cei[1].clamp(min=0, max=max(0, num_nodes - 1))
+    fiber_src = fiber_state.index_select(0, src)
+    fiber_tgt = fiber_state.index_select(0, tgt)
+    t_node = _temporal_per_node(graph_batch, num_nodes, fiber_state.dtype, fiber_state.device)
+    t_src = t_node.index_select(0, src).reshape(-1, 1)
+    t_tgt = t_node.index_select(0, tgt).reshape(-1, 1)
+    return torch.cat([fiber_src, fiber_tgt, t_src, t_tgt], dim=-1)
+
+
+def _temporal_per_node(
+    graph_batch: ClaimFieldGraphBatch,
+    num_nodes: int,
+    dtype: torch.dtype,
+    device: torch.device,
+) -> Tensor:
+    temporal = graph_batch.temporal_features
+    if temporal is None or temporal.numel() == 0:
+        return torch.zeros((num_nodes,), dtype=dtype, device=device)
+    per_claim = temporal.float().mean(dim=-1)
+    mapping = graph_batch.node_to_claim_state
+    if mapping is None or mapping.numel() == 0:
+        fill = per_claim[0] if per_claim.numel() > 0 else torch.zeros((), device=device)
+        return fill.to(dtype=dtype, device=device).expand(num_nodes)
+    idx = mapping.clamp(min=0, max=max(0, per_claim.shape[0] - 1))
+    return per_claim.index_select(0, idx).to(dtype=dtype)
 
 
 def _context_lability(fiber_state: Tensor, graph_batch: ClaimFieldGraphBatch) -> Tensor:

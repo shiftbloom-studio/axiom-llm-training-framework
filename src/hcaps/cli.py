@@ -74,6 +74,8 @@ from hcaps.utils.time import utc_now
 from hcaps.verdict import VerdictThresholds, generate_verdict, write_verdict_report
 from hcaps.verdict.report import inspect_verdict
 
+from hcaps import pipeline_cli
+
 app = typer.Typer(help="Axiom claim-field substrate tools.")
 format_app = typer.Typer(help="AXF/AXC format commands.")
 package_app = typer.Typer(help="AXP package commands.")
@@ -137,9 +139,23 @@ FULL_PIPELINE_HIGH_IMPACT_CLAIM_TYPES = [
 
 @app.command("full")
 def full_command() -> None:
-    """Run the complete guided Axiom pipeline from extraction through trained checkpoints."""
+    """Run the complete staged pipeline: harvest -> prepare -> train arm E."""
 
-    _run_full_pipeline_wizard()
+    pipeline_cli.run_full()
+
+
+@app.command("harvest")
+def harvest_command() -> None:
+    """Collect source documents (local folder, Brave search, fetch URLs, or Firecrawl)."""
+
+    pipeline_cli.run_harvest()
+
+
+@app.command("prepare")
+def prepare_command() -> None:
+    """Extract claims with the integrated llama-server and compile the AXT dataset."""
+
+    pipeline_cli.run_prepare()
 
 
 def _run_full_pipeline_wizard() -> None:
@@ -925,6 +941,17 @@ def geometry_smoke_command(
     except Exception as exc:
         raise typer.BadParameter(str(exc)) from exc
     _print_payload(payload, json_output=json_output, title="Axiom Geometry Smoke")
+
+
+@train_app.callback(invoke_without_command=True)
+def train_default(ctx: typer.Context) -> None:
+    """Interactive arm-E training (structured-native + learned geometry).
+
+    `axiom train` with no subcommand runs the guided arm-E run; `axiom train run
+    <config>` still runs a config directly.
+    """
+    if ctx.invoked_subcommand is None:
+        pipeline_cli.run_train()
 
 
 @train_app.command("run")

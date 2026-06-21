@@ -10,6 +10,7 @@ Axiom is a structured-native LLM training framework. Do not reduce it to a norma
 
 When files conflict, follow this order:
 
+0. `docs/concept/HKR_HIGHEST_ORDER_PARADIGM.md` — the highest-order paradigm; supersedes everything below. If any doc, design, or code implies an invariant fact-core or a closed/low-dimensional context field, this paradigm overrules it.
 1. `docs/concept/CONCEPT.md`
 2. `docs/concept/DECISIONS.md`
 3. `docs/work/IMPLEMENTATION_ROADMAP.md`

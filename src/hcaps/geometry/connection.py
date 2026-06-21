@@ -1,4 +1,13 @@
-"""Learnable context-transition connection parameterization."""
+"""Open, time-aware, non-orthogonal context-transport connection.
+
+Per the highest-order HKR paradigm (docs/concept/HKR_HIGHEST_ORDER_PARADIGM.md):
+context is open-dimensional (not an enumerated type table), the fact-core is not
+invariant, and reality drifts over time. The transport here is therefore generated
+by a learned function of *continuous* per-edge context features (the endpoint fiber
+states plus their temporal features, assembled by the module) and is a GENERAL
+invertible map -- matrix_exp of a non-skew generator -- so it can MOVE the core,
+not an SO(n) rotation that merely reframes an invariant core.
+"""
 
 from __future__ import annotations
 
@@ -19,66 +28,67 @@ class ConnectionOutput:
 
 
 class LearnedConnection(nn.Module):
-    """Small skew-symmetric connection basis over lateral context transitions."""
+    """Generate per-edge transports from continuous, open context features.
 
-    def __init__(self, config: GeometryConfig) -> None:
+    Input ``edge_context`` is ``[num_edges, context_in_dim]`` (the module builds it
+    from the endpoint fiber states and their temporal features). There are no
+    enumerated transition/relation type tables, so context is not a closed list.
+    """
+
+    def __init__(self, config: GeometryConfig, *, context_in_dim: int | None = None) -> None:
         super().__init__()
         self.config = config
         self.fiber_dim = config.fiber_dim
-        self.basis_count = _basis_count(config.fiber_dim, config.connection_rank)
-        basis = _skew_basis(config.fiber_dim, self.basis_count)
-        self.register_buffer("basis", basis)
-        self.transition_coefficients = nn.Embedding(config.max_transition_types, self.basis_count)
-        self.relation_coefficients = nn.Embedding(config.max_relation_types, self.basis_count)
-        nn.init.zeros_(self.transition_coefficients.weight)
-        nn.init.zeros_(self.relation_coefficients.weight)
+        # endpoint fibers (2 * fiber_dim) + their two temporal scalars
+        self.context_in_dim = context_in_dim or (2 * config.fiber_dim + 2)
+        hidden = (
+            config.connection_hidden
+            if config.connection_hidden > 0
+            else max(32, 2 * config.fiber_dim)
+        )
+        self.generator = nn.Sequential(
+            nn.Linear(self.context_in_dim, hidden),
+            nn.GELU(),
+            nn.Linear(hidden, config.fiber_dim * config.fiber_dim),
+        )
+        # Small, non-zero init: transports start near (not exactly) identity -- no
+        # privileged flat/invariant prior -- while staying bounded for matrix_exp.
+        final = cast(nn.Linear, self.generator[-1])
+        nn.init.normal_(final.weight, std=1e-3)
+        nn.init.zeros_(final.bias)
+        self.scale = float(config.connection_scale)
 
-    def forward(
-        self,
-        transition_type_ids: Tensor,
-        *,
-        relation_type_ids: Tensor | None = None,
-    ) -> ConnectionOutput:
-        if transition_type_ids.numel() == 0:
-            empty_matrices = torch.zeros(
-                (0, self.fiber_dim, self.fiber_dim),
-                dtype=torch.float32,
-                device=transition_type_ids.device,
-            )
-            empty_coefficients = torch.zeros(
-                (0, self.basis_count),
-                dtype=torch.float32,
-                device=transition_type_ids.device,
-            )
+    def forward(self, edge_context: Tensor) -> ConnectionOutput:
+        n = self.fiber_dim
+        device = edge_context.device
+        if edge_context.numel() == 0:
+            empty = torch.zeros((0, n, n), dtype=torch.float32, device=device)
             return ConnectionOutput(
-                connection_matrices=empty_matrices,
-                transport_matrices=empty_matrices,
-                coefficients=empty_coefficients,
+                connection_matrices=empty,
+                transport_matrices=empty,
+                coefficients=torch.zeros((0, n * n), dtype=torch.float32, device=device),
             )
-        transition_ids = torch.remainder(
-            torch.abs(transition_type_ids.to(dtype=torch.long)),
-            self.config.max_transition_types,
+        edges = edge_context.shape[0]
+        generators = self.generator(edge_context.float()).reshape(edges, n, n) * self.scale
+        generators = _bound_norm(generators, self.config.connection_max_norm)
+        transports = transport_from_connection(
+            generators, operator=self.config.transport_operator
         )
-        coefficients = self.transition_coefficients(transition_ids)
-        if relation_type_ids is not None and relation_type_ids.numel() > 0:
-            relation_ids = torch.remainder(
-                torch.abs(relation_type_ids[: transition_ids.numel()].to(dtype=torch.long)),
-                self.config.max_relation_types,
-            )
-            coefficients = coefficients + self.relation_coefficients(relation_ids)
-        basis = cast(Tensor, self.basis).to(coefficients.device)
-        connection = torch.einsum("eb,bxy->exy", coefficients, basis)
-        connection = skew_symmetric(connection)
-        transports = transport_from_connection(connection, operator=self.config.transport_operator)
         return ConnectionOutput(
-            connection_matrices=connection,
+            connection_matrices=generators,
             transport_matrices=transports,
-            coefficients=coefficients,
+            coefficients=generators.reshape(edges, -1),
         )
 
 
-def skew_symmetric(matrix: Tensor) -> Tensor:
-    return matrix - matrix.transpose(-1, -2)
+def _bound_norm(generators: Tensor, max_norm: float) -> Tensor:
+    """Soft-cap the per-edge Frobenius norm so matrix_exp stays numerically bounded."""
+    if max_norm <= 0:
+        return generators
+    edges = generators.shape[0]
+    norm = generators.reshape(edges, -1).norm(dim=-1).clamp_min(1e-6)
+    factor = (max_norm / norm).clamp_max(1.0).reshape(edges, 1, 1)
+    return generators * factor
 
 
 def transport_from_connection(connection: Tensor, *, operator: TransportOperator) -> Tensor:
@@ -103,23 +113,3 @@ def identity_transports(
 ) -> Tensor:
     identity = torch.eye(fiber_dim, dtype=dtype, device=device)
     return identity.expand(count, fiber_dim, fiber_dim).clone()
-
-
-def _basis_count(fiber_dim: int, connection_rank: int | None) -> int:
-    full = fiber_dim * (fiber_dim - 1) // 2
-    if connection_rank is None:
-        return full
-    return max(1, min(connection_rank, full))
-
-
-def _skew_basis(fiber_dim: int, basis_count: int) -> Tensor:
-    basis = torch.zeros((basis_count, fiber_dim, fiber_dim), dtype=torch.float32)
-    cursor = 0
-    for row in range(fiber_dim):
-        for col in range(row + 1, fiber_dim):
-            if cursor >= basis_count:
-                return basis
-            basis[cursor, row, col] = 1.0
-            basis[cursor, col, row] = -1.0
-            cursor += 1
-    return basis
