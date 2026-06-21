@@ -2,6 +2,8 @@
 
 **Axiom is a structured-native LLM training framework.** Text is a projection for compatibility and comparison. The primary representation, substrate, conditioning, core computation, and emission are structured claim-field data and AXC-out.
 
+> **The highest-order paradigm is [HKR_HIGHEST_ORDER_PARADIGM.md](HKR_HIGHEST_ORDER_PARADIGM.md); it supersedes this document. If anything here implies an invariant fact-core or a closed / low-dimensional context field, defer to the paradigm.**
+
 This document holds the **synthesized current concept** plus the **owner's decisions and
 direction**, captured with their meaning preserved. It is the authority on *intent and
 direction*. The formal decision record is [DECISIONS.md](DECISIONS.md). Where older docs

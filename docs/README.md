@@ -6,6 +6,7 @@ Axiom is a structured-native LLM training framework. The canonical concept, deci
 
 ## Start Here
 
+0. [concept/HKR_HIGHEST_ORDER_PARADIGM.md](concept/HKR_HIGHEST_ORDER_PARADIGM.md) - **highest-order paradigm; read first, supersedes all below.**
 1. [concept/CONCEPT.md](concept/CONCEPT.md) - conceptual authority.
 2. [concept/DECISIONS.md](concept/DECISIONS.md) - accepted ADRs.
 3. [work/IMPLEMENTATION_ROADMAP.md](work/IMPLEMENTATION_ROADMAP.md) - current P1-P6 v1 roadmap.

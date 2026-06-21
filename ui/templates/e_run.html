@@ -59,20 +59,13 @@
 class Component extends DCLogic {
   // ---------- configuration state ----------
   cfg = {
-    input_path: 'examples/corpus/ml_software_benchmarks/sources',
-    cutoff_date: '2026-01-01',
-    harvest_query: '',
-    max_sources: 8, use_full: false,
-    devotion: 56, wall: 7200,
-    primary_model: 'sonar-pro',
-    geometry_preset: '',
-    extraction_model: '', custom_model: '',
-    escalation_mode: 'none',
-    max_escalation_fraction: 0.25,
-    max_steps: 100, max_records: 2048,
-    max_chunk_chars: 420, claim_sim: 0.72, provider_timeout: 600,
-    text_proj_w: 0.2, geom_obs_w: 0.2,
-    preset: 'standard'
+    input_axt_path: 'artifacts/axt/pioneer.axt',
+    max_steps: 7500,
+    seed: 13,
+    precision: 'fp32',
+    output_dir: 'runs',
+    learning_rate: 0.0003,
+    micro_batch: 8
   };
 
   hoverKey = null; activeKey = null; frozen = false; reduced = false;
@@ -81,25 +74,25 @@ class Component extends DCLogic {
 
   // ---------- node + wire graph ----------
   NODES = [
-    { k:'harvest', label:'harvest', grp:'anchor', ctrl:'range', x:0.42, y:0.44, min:1, max:48, step:1 },
-    { k:'devotion', label:'devotion', grp:'anchor', ctrl:'devotion', x:0.58, y:0.56, min:0, max:100, step:1 },
-    { k:'source', label:'source', grp:1, ctrl:'text', x:0.28, y:0.30 },
-    { k:'cutoff', label:'cutoff', grp:1, ctrl:'text', x:0.30, y:0.66 },
-    { k:'field', label:'the open field', grp:1, ctrl:'harvest', x:0.16, y:0.50 },
-    { k:'paradigm', label:'paradigm', grp:1, ctrl:'paradigm', x:0.46, y:0.25 },
+    { k:'harvest', label:'the measure of data', grp:1, ctrl:'text', x:0.42, y:0.44 },
+    { k:'devotion', label:'devotion \u00b7 passes', grp:1, ctrl:'devotion', x:0.58, y:0.56, min:0, max:100, step:1 },
+    { k:'source', label:'seed', grp:1, ctrl:'num', x:0.28, y:0.30 },
+    { k:'cutoff', label:'precision', grp:1, ctrl:'enum', x:0.30, y:0.66 },
+    { k:'field', label:'output', grp:1, ctrl:'text', x:0.16, y:0.50 },
+    { k:'paradigm', label:'learning rate', grp:1, ctrl:'num', x:0.46, y:0.25 },
     { k:'launch', label:'launch', grp:'action', ctrl:'action', x:0.55, y:0.80 },
-    { k:'pmodel', label:'primary model', grp:2, ctrl:'text', x:0.71, y:0.32 },
-    { k:'geometry', label:'geometry', grp:2, ctrl:'select-geo', x:0.81, y:0.49 },
-    { k:'extraction', label:'extraction model', grp:2, ctrl:'extraction', x:0.66, y:0.69 },
-    { k:'cascade', label:'cascade reach', grp:2, ctrl:'range', x:0.52, y:0.66, min:0, max:0.5, step:0.01 },
-    { k:'quality', label:'cascade quality', grp:2, ctrl:'radio', x:0.40, y:0.75 },
-    { k:'steps', label:'steps', grp:2, ctrl:'num', x:0.73, y:0.21 },
-    { k:'records', label:'records', grp:2, ctrl:'num', x:0.85, y:0.34 },
-    { k:'chunk', label:'chunk chars', grp:3, ctrl:'num', x:0.14, y:0.21 },
-    { k:'sim', label:'claim similarity', grp:3, ctrl:'num', x:0.14, y:0.80 },
-    { k:'timeout', label:'timeout', grp:3, ctrl:'num', x:0.87, y:0.75 },
-    { k:'textw', label:'text projection', grp:3, ctrl:'num', x:0.87, y:0.17 },
-    { k:'geomw', label:'geometry observables', grp:3, ctrl:'num', x:0.25, y:0.87 }
+    { k:'pmodel', label:'micro-batch', grp:2, ctrl:'num', x:0.71, y:0.32 },
+    { k:'geometry', label:'geometry \u00b7 held', grp:2, ctrl:'locked', x:0.81, y:0.49 },
+    { k:'extraction', label:'provider \u00b7 learned', grp:2, ctrl:'locked', x:0.66, y:0.69 },
+    { k:'cascade', label:'model \u00b7 injected', grp:2, ctrl:'locked', x:0.52, y:0.66 },
+    { k:'quality', label:'guard \u00b7 active', grp:2, ctrl:'locked', x:0.40, y:0.75 },
+    { k:'steps', label:'transport \u00b7 fp32', grp:2, ctrl:'locked', x:0.73, y:0.21 },
+    { k:'records', label:'curriculum \u00b7 none', grp:2, ctrl:'locked', x:0.85, y:0.34 },
+    { k:'chunk', label:'identity-bias \u00b7 0', grp:3, ctrl:'locked', x:0.14, y:0.21 },
+    { k:'sim', label:'curvature \u00b7 free', grp:3, ctrl:'locked', x:0.14, y:0.80 },
+    { k:'timeout', label:'path-consistency', grp:3, ctrl:'locked', x:0.87, y:0.75 },
+    { k:'textw', label:'observables \u00b7 0.2', grp:3, ctrl:'locked', x:0.87, y:0.17 },
+    { k:'geomw', label:'regularization \u00b7 0.01', grp:3, ctrl:'locked', x:0.25, y:0.87 }
   ];
   WIRES = [
     ['harvest','source'],['harvest','field'],['harvest','cutoff'],['harvest','paradigm'],['harvest','devotion'],['harvest','cascade'],
@@ -583,7 +576,7 @@ class Component extends DCLogic {
       el.style.cssText = 'position:absolute; left:0; top:0; transform:translate(-9999px,-9999px); pointer-events:none; white-space:nowrap; transition:opacity .34s ease;';
       const name = document.createElement('div');
       name.textContent = n.label;
-      const anchor = (n.grp === 'anchor' || n.grp === 'action');
+      const anchor = (n.grp === 'anchor' || n.grp === 'action' || n.k === 'harvest' || n.k === 'devotion');
       name.style.cssText = 'font-family:\'IBM Plex Mono\',monospace; font-size:' + (anchor ? 11 : 10) + 'px; letter-spacing:0.16em; text-transform:uppercase; color:' + (anchor ? '#4a463c' : '#9a9488') + ';';
       el.appendChild(name);
       const val = document.createElement('div');
@@ -608,15 +601,14 @@ class Component extends DCLogic {
       const el = n.labelEl; if (!el) return;
       const off = (n.grp === 'anchor' || n.grp === 'action') ? 16 : 12;
       el.style.transform = 'translate(' + (n.sx + off) + 'px,' + (n.sy - 8) + 'px)';
-      const anchor = (n.grp === 'anchor' || n.grp === 'action');
+      const anchor = (n.grp === 'anchor' || n.grp === 'action' || n.k === 'harvest' || n.k === 'devotion');
       let vis = anchor || showAll || this.hoverKey === n.k || this.activeKey === n.k;
       if (this.activeKey === n.k) vis = false; // hidden behind open panel
       el.style.opacity = vis ? String(Math.min(1, rev)) : '0';
       if (n.valEl) {
-        if (n.k === 'harvest') n.valEl.textContent = this.cfg.use_full ? 'all' : String(this.cfg.max_sources);
-        else if (n.k === 'devotion') n.valEl.textContent = this.fmtWall(this.cfg.wall);
+        if (n.k === 'devotion') n.valEl.textContent = String(this.cfg.max_steps);
         else n.valEl.textContent = '';
-        n.valEl.style.display = (n.k === 'harvest' || n.k === 'devotion') ? 'block' : 'none';
+        n.valEl.style.display = (n.k === 'devotion') ? 'block' : 'none';
       }
     });
     if (this.activeKey) {
@@ -717,50 +709,27 @@ class Component extends DCLogic {
 
   buildControl(n) {
     const C = this.cfg;
-    const numB = (get, set, min, max, step, fmt) => ({ kind: 'num', display: () => fmt(get()), frac: () => (get() - min) / (max - min), setFrac: (f) => { let v = min + f * (max - min); v = Math.round(v / step) * step; set(Math.max(min, Math.min(max, +v.toFixed(6)))); }, dec: () => set(Math.max(min, +(get() - step).toFixed(6))), inc: () => set(Math.min(max, +(get() + step).toFixed(6))) });
-    const numU = (get, set, step, min, fmt) => ({ kind: 'num', display: () => fmt(get()), frac: () => null, dec: () => set(Math.max(min, get() - step)), inc: () => set(get() + step) });
-    const enumC = (opts, getI, setI) => ({ kind: 'enum', display: () => (opts[getI()] ? opts[getI()].label : '\u2014'), frac: () => opts.length > 1 ? getI() / (opts.length - 1) : 0, ticks: opts.length > 1 ? opts.map((_, i) => i / (opts.length - 1)) : null, setFrac: (f) => setI(Math.round(f * (opts.length - 1))), dec: () => setI(Math.max(0, getI() - 1)), inc: () => setI(Math.min(opts.length - 1, getI() + 1)) });
+    const numU = (get, set, step, min, fmt) => ({ kind: 'num', display: () => fmt(get()), frac: () => null, dec: () => set(Math.max(min, +(get() - step).toFixed(6))), inc: () => set(+(get() + step).toFixed(6)) });
+    const locked = (txt) => { const d = this.el('div', "font-family:'IBM Plex Mono',monospace; font-size:11px; color:#9a9488; letter-spacing:0.04em; text-align:center; line-height:1.6; min-width:200px;"); d.innerHTML = txt; return d; };
     switch (n.k) {
-      case 'harvest': return this.abstractControl({ kind: 'num',
-        display: () => C.use_full ? 'all' : String(C.max_sources),
-        frac: () => C.use_full ? 1 : (C.max_sources - 1) / 48,
-        setFrac: (f) => { const v = Math.round(1 + f * 48); if (v >= 49) C.use_full = true; else { C.use_full = false; C.max_sources = Math.max(1, Math.min(48, v)); } },
-        dec: () => { if (C.use_full) { C.use_full = false; C.max_sources = 48; } else C.max_sources = Math.max(1, C.max_sources - 1); },
-        inc: () => { if (!C.use_full) { if (C.max_sources >= 48) C.use_full = true; else C.max_sources++; } } });
-      case 'devotion': return this.abstractControl(numB(() => C.devotion, (v) => { C.devotion = v; C.wall = this.wallFrom(v); }, 0, 100, 3, () => this.fmtWall(C.wall)));
-      case 'cascade': return this.abstractControl(numB(() => C.max_escalation_fraction, (v) => C.max_escalation_fraction = v, 0, 0.5, 0.02, (v) => Math.round(v * 100) + '%'));
-      case 'sim': return this.abstractControl(numB(() => C.claim_sim, (v) => C.claim_sim = v, 0, 1, 0.02, (v) => v.toFixed(2)));
-      case 'textw': return this.abstractControl(numB(() => C.text_proj_w, (v) => C.text_proj_w = v, 0, 1, 0.05, (v) => v.toFixed(2)));
-      case 'geomw': return this.abstractControl(numB(() => C.geom_obs_w, (v) => C.geom_obs_w = v, 0, 1, 0.05, (v) => v.toFixed(2)));
-      case 'steps': return this.abstractControl(numU(() => C.max_steps, (v) => C.max_steps = v, 10, 1, (v) => String(v)));
-      case 'records': return this.abstractControl(numU(() => C.max_records, (v) => C.max_records = v, 256, 1, (v) => String(v)));
-      case 'chunk': return this.abstractControl(numU(() => C.max_chunk_chars, (v) => C.max_chunk_chars = v, 20, 20, (v) => String(v)));
-      case 'timeout': return this.abstractControl(numU(() => C.provider_timeout, (v) => C.provider_timeout = v, 60, 30, (v) => v + 's'));
-      case 'paradigm': { const names = ['smoke', 'pilot', 'standard', 'large', 'eternal']; const opts = names.map(v => ({ v, label: v })); return this.abstractControl(enumC(opts, () => Math.max(0, names.indexOf(C.preset)), (i) => this.applyPreset(names[i]))); }
-      case 'quality': { const opts = [{ v: 'none', label: 'pure local' }, { v: 'deterministic', label: 'deterministic' }, { v: 'remote', label: 'remote' }]; return this.abstractControl(enumC(opts, () => Math.max(0, opts.findIndex(o => o.v === C.escalation_mode)), (i) => { C.escalation_mode = opts[i].v; })); }
-      case 'geometry': { const opts = [{ v: '', label: 'default' }].concat(this.geometryPresets.map(g => ({ v: g, label: g.split('/').pop().replace('.yaml', '') }))); return this.abstractControl(enumC(opts, () => { const i = opts.findIndex(o => o.v === C.geometry_preset); return i < 0 ? 0 : i; }, (i) => { C.geometry_preset = opts[i].v; })); }
-      case 'extraction': {
-        const opts = [{ v: '', label: 'name below \u2193' }].concat(this.models.map(m => ({ v: m.value, label: m.label.replace(' (auto-drawn)', '').replace(' \u2713', '').slice(0, 26) })));
-        const ctrl = this.abstractControl(enumC(opts, () => { const i = opts.findIndex(o => o.v === C.extraction_model); return i < 0 ? 0 : i; }, (i) => { C.extraction_model = opts[i].v; if (opts[i].v) C.custom_model = opts[i].v; }));
-        const extra = this.el('div', 'margin-top:16px;');
-        const det = this.el('span', '', 'detect installed'); det.className = 'wp-chip'; det.style.display = 'block'; det.style.textAlign = 'center'; det.onclick = () => this.detectModels(true);
-        const cust = document.createElement('input'); cust.className = 'wp-in'; cust.placeholder = 'or name a hf repo / .gguf path'; cust.value = C.custom_model; cust.style.cssText = 'width:100%; margin-top:10px; text-align:center;';
-        cust.oninput = () => { C.custom_model = cust.value; };
-        const st = this.el('div', 'font-family:\'IBM Plex Mono\',monospace; font-size:9px; color:#bdb8ac; margin-top:8px; white-space:normal; text-align:center;'); this._extStatus = st; st.textContent = this._modelMsg || '';
-        extra.appendChild(det); extra.appendChild(cust); extra.appendChild(st); ctrl.appendChild(extra); return ctrl;
-      }
-      case 'field': {
-        const extra = this.el('div', 'margin-top:14px;');
-        const tools = this.el('div', 'display:flex; gap:7px; justify-content:center;');
-        ['brave', 'firecrawl', 'fetch'].forEach(tool => { const c = this.el('span', '', tool); c.className = 'wp-chip'; c.onclick = () => this.doHarvest(tool); tools.appendChild(c); });
-        const res = this.el('div', 'font-family:\'IBM Plex Mono\',monospace; font-size:10px; color:#7a7567; margin-top:10px; max-height:80px; overflow:auto; line-height:1.5; white-space:normal; text-align:center;'); this._harvestRes = res;
-        const apply = this.el('div', 'font-family:\'IBM Plex Mono\',monospace; font-size:10px; color:' + this.accent() + '; margin-top:8px; cursor:pointer; text-decoration:underline; text-underline-offset:2px; display:none; text-align:center;', 'use the harvested as source'); apply.onclick = () => this.applyHarvest(); this._harvestApply = apply;
-        extra.appendChild(tools); extra.appendChild(res); extra.appendChild(apply);
-        return this.abstractControl({ kind: 'text', get: () => C.harvest_query, set: (v) => C.harvest_query = v, placeholder: 'ml software benchmarks 2025', extra });
-      }
-      case 'source': return this.abstractControl({ kind: 'text', get: () => C.input_path, set: (v) => C.input_path = v, placeholder: 'path to sources' });
-      case 'cutoff': return this.abstractControl({ kind: 'text', get: () => C.cutoff_date, set: (v) => C.cutoff_date = v, placeholder: 'YYYY-MM-DD' });
-      case 'pmodel': return this.abstractControl({ kind: 'text', get: () => C.primary_model, set: (v) => C.primary_model = v, placeholder: 'model name' });
+      case 'harvest': return this.abstractControl({ kind: 'text', get: () => C.input_axt_path, set: (v) => C.input_axt_path = v, placeholder: 'path to compiled .axt bundle' });
+      case 'devotion': return this.abstractControl(numU(() => C.max_steps, (v) => C.max_steps = Math.max(1, Math.round(v)), 500, 1, (v) => String(v)));
+      case 'source': return this.abstractControl(numU(() => C.seed, (v) => C.seed = Math.max(0, Math.round(v)), 1, 0, (v) => String(v)));
+      case 'cutoff': { const opts = ['fp32','bf16']; return this.abstractControl({ kind: 'enum', display: () => C.precision, frac: () => Math.max(0, opts.indexOf(C.precision)) / (opts.length - 1), ticks: opts.map((_, i) => i / (opts.length - 1)), setFrac: (fr) => { C.precision = opts[Math.round(fr * (opts.length - 1))]; }, dec: () => { C.precision = 'fp32'; }, inc: () => { C.precision = 'bf16'; } }); }
+      case 'field': return this.abstractControl({ kind: 'text', get: () => C.output_dir, set: (v) => C.output_dir = v, placeholder: 'runs' });
+      case 'paradigm': return this.abstractControl(numU(() => C.learning_rate, (v) => C.learning_rate = Math.max(0, +(+v).toFixed(6)), 0.0001, 0, (v) => (+v).toFixed(4)));
+      case 'pmodel': return this.abstractControl(numU(() => C.micro_batch, (v) => C.micro_batch = Math.max(1, Math.round(v)), 1, 1, (v) => String(v)));
+      case 'geometry': return locked('held \u00b7 research_geometry<br>geometry_provider_injected');
+      case 'extraction': return locked('provider \u00b7 learned<br>matrix_exp transport');
+      case 'cascade': return locked('model \u00b7 research_geometry<br>injected, not bypassed');
+      case 'quality': return locked('guard \u00b7 active<br>raises rather than degrading to D');
+      case 'steps': return locked('transport \u00b7 float32 island<br>bf16-safe');
+      case 'records': return locked('curriculum \u00b7 none<br>geometry at full weight');
+      case 'chunk': return locked('identity-bias \u00b7 0<br>no pull toward flat');
+      case 'sim': return locked('curvature-energy \u00b7 0<br>holonomy not penalised');
+      case 'timeout': return locked('path-consistency \u00b7 0.001');
+      case 'textw': return locked('geometry observables \u00b7 0.2');
+      case 'geomw': return locked('regularization \u00b7 0.01');
     }
     return this.el('div', '', '');
   }
@@ -841,16 +810,54 @@ class Component extends DCLogic {
       hf_repo, local_gguf_path, escalation_mode: C.escalation_mode, escalation_perplexity: C.escalation_mode === 'remote'
     };
   }
-  async launch() {
-    this.poetry('measure cast \u2014 the plane awakens', true);
+  validateRun() {
+    const C = this.cfg, e = [];
+    if (!C.input_axt_path || !String(C.input_axt_path).trim()) e.push('a data path (.axt bundle) is required');
+    if (!(+C.max_steps >= 1)) e.push('passes must be at least 1');
+    if (!(+C.seed >= 0)) e.push('seed must be 0 or more');
+    if (C.precision !== 'fp32' && C.precision !== 'bf16') e.push('precision must be fp32 or bf16');
+    if (!C.output_dir || !String(C.output_dir).trim()) e.push('an output directory is required');
+    if (!(+C.learning_rate > 0)) e.push('learning rate must be greater than 0');
+    if (!(+C.micro_batch >= 1)) e.push('micro-batch must be at least 1');
+    return e;
+  }
+  launch() {
+    const errs = this.validateRun();
+    if (errs.length) { this.poetry(errs[0]); return; }
+    this.showConfirm();
+  }
+  showConfirm() {
+    const C = this.cfg;
+    if (document.getElementById('wp-confirm')) return;
+    const ov = this.el('div', "position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.55); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);");
+    ov.id = 'wp-confirm';
+    const box = this.el('div', "background:rgba(255,255,255,0.97); border:1px solid #e6e6ea; border-radius:18px; box-shadow:0 24px 80px rgba(26,24,19,0.12); padding:30px 34px; width:min(440px,90vw); box-sizing:border-box;");
+    box.appendChild(this.el('div', "font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.3em; text-transform:uppercase; color:#bdb8ac;", 'confirm the measure'));
+    box.appendChild(this.el('div', "font-weight:300; font-size:22px; color:#1a1813; margin:4px 0 18px;", 'arm E — about to begin'));
+    const rows = [['the measure of data', String(C.input_axt_path)], ['devotion · passes', String(C.max_steps)], ['seed', String(C.seed)], ['precision', String(C.precision)], ['output', String(C.output_dir)], ['learning rate', (+C.learning_rate).toFixed(4)], ['micro-batch', String(C.micro_batch)], ['geometry', 'held · injected · guard active']];
+    rows.forEach(r => { const row = this.el('div', "display:flex; justify-content:space-between; gap:18px; padding:7px 0; border-bottom:1px solid #f0f0f3;"); row.appendChild(this.el('span', "font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#a8a294; flex:none;", r[0])); row.appendChild(this.el('span', "font-family:'IBM Plex Mono',monospace; font-size:12px; color:#1a1813; text-align:right; word-break:break-all;", r[1])); box.appendChild(row); });
+    const act = this.el('div', "display:flex; justify-content:flex-end; gap:22px; margin-top:24px;");
+    const cancel = this.el('span', "font-family:'IBM Plex Mono',monospace; font-size:12px; color:#a8a294; cursor:pointer;", 'cancel');
+    const go = this.el('span', "font-family:'IBM Plex Mono',monospace; font-size:12px; color:#1f3d73; cursor:pointer;", 'begin the run');
+    cancel.onclick = () => { ov.remove(); this.poetry('the measure waits'); };
+    go.onclick = () => { ov.remove(); this.doLaunch(); };
+    act.appendChild(cancel); act.appendChild(go); box.appendChild(act);
+    ov.appendChild(box);
+    ov.addEventListener('click', (ev) => { if (ev.target === ov) { ov.remove(); } });
+    document.body.appendChild(ov);
+  }
+  async doLaunch() {
+    this.poetry('measure cast — the plane awakens', true);
+    const C = this.cfg;
     try {
-      const r = await fetch('/api/launch_e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input_axt_path: (this.cfg.input_path||'artifacts/axt/pioneer.axt'), run_name: null, max_steps: (+this.cfg.max_steps||7500), seed: 13, precision: 'fp32', output_dir: 'runs' }) });
-      if (!r.ok) { this.poetry('the measure was not taken'); return; }
+      const r = await fetch('/api/launch_e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input_axt_path: C.input_axt_path, run_name: null, max_steps: (+C.max_steps||7500), seed: (+C.seed||13), precision: (C.precision||'fp32'), output_dir: (C.output_dir||'runs'), learning_rate: (+C.learning_rate||null), micro_batch_size: (+C.micro_batch||null) }) });
+      if (!r.ok) { let d=''; try { d=(await r.json()).detail||''; } catch (x) {} this.poetry(d || 'the measure was not taken'); return; }
       const j = await r.json(); this.runName = j.run_name;
       const a = document.getElementById('attach_run'); if (a) a.value = j.run_name || '';
-      this.poetry('wiring under the measure', true);
-    } catch (e) { this.poetry('no plane answers \u2014 awaiting a keeper'); }
+      this.poetry('arm E — the geometry is held', true);
+    } catch (e) { this.poetry('no plane answers — awaiting a keeper'); }
   }
+
   async attach() {
     const a = document.getElementById('attach_run'); const name = a ? a.value.trim() : '';
     if (!name) return;

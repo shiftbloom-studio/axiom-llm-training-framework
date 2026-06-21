@@ -315,6 +315,9 @@ class EventBus:
 
 bus = EventBus()
 
+# Captured at startup so worker threads can publish onto the main event loop.
+_MAIN_LOOP: asyncio.AbstractEventLoop | None = None
+
 # Current managed job state
 _current_job: dict[str, Any] = {
     "run_name": None,
@@ -328,18 +331,32 @@ _current_job: dict[str, Any] = {
 _job_lock = threading.Lock()
 
 
+def _publish(event: str, data: dict[str, Any]) -> None:
+    """Thread-safe publish: schedule bus.publish on the captured main loop.
+
+    Worker threads have no running event loop, so asyncio.create_task fails there.
+    """
+    loop = _MAIN_LOOP
+    if loop is None or not loop.is_running():
+        return
+    try:
+        asyncio.run_coroutine_threadsafe(bus.publish(event, data), loop)
+    except RuntimeError:
+        pass
+
+
 def _set_stage(stage: str, run_name: str | None = None) -> None:
     with _job_lock:
         _current_job["stage"] = stage
         if run_name:
             _current_job["run_name"] = run_name
-    asyncio.create_task(bus.publish("stage", {"stage": stage, "run_name": run_name}))  # noqa: RUF006
+    _publish("stage", {"stage": stage, "run_name": run_name})
 
 
 def _append_log(line: str) -> None:
     with _job_lock:
         _current_job["logs"].append(line)
-    asyncio.create_task(bus.publish("log", {"line": line}))  # noqa: RUF006
+    _publish("log", {"line": line})
 
 
 def _get_job_snapshot() -> JobStatus:
@@ -1255,7 +1272,7 @@ def _run_e_training(req: ERunRequest, stop_event: threading.Event) -> None:
             _append_log(f"[ui] E run complete — checkpoints: {arm_dir}/checkpoints/")
             _persist_current_job(run_name, "done")
             _set_stage("done", run_name)
-            asyncio.run(bus.publish("done", {"run_dir": str(run_dir), "run_name": run_name}))
+            _publish("done", {"run_dir": str(run_dir), "run_name": run_name})
         else:
             raise RuntimeError(
                 f"axiom train run exited with code {rc}. If the geometry guard fired, the model "
@@ -1266,7 +1283,7 @@ def _run_e_training(req: ERunRequest, stop_event: threading.Event) -> None:
             _current_job["error"] = str(e)
         _append_log(f"[ui][ERROR] {e}")
         _persist_current_job(run_name, "error")
-        asyncio.run(bus.publish("error", {"message": str(e)}))
+        _publish("error", {"message": str(e)})
     finally:
         with _job_lock:
             _current_job["thread"] = None
@@ -1700,6 +1717,8 @@ async def _fs_poller() -> None:  # noqa: PLR0912
 
 @app.on_event("startup")
 async def _startup() -> None:
+    global _MAIN_LOOP
+    _MAIN_LOOP = asyncio.get_running_loop()
     asyncio.create_task(_fs_poller())  # noqa: RUF006
 
 
