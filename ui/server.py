@@ -46,6 +46,7 @@ try:
 except Exception:  # pragma: no cover
     orjson = None  # type: ignore[assignment]
 
+import yaml
 from fastapi import Body, FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -339,10 +340,8 @@ def _publish(event: str, data: dict[str, Any]) -> None:
     loop = _MAIN_LOOP
     if loop is None or not loop.is_running():
         return
-    try:
+    with suppress(RuntimeError):
         asyncio.run_coroutine_threadsafe(bus.publish(event, data), loop)
-    except RuntimeError:
-        pass
 
 
 def _set_stage(stage: str, run_name: str | None = None) -> None:
@@ -1202,9 +1201,36 @@ _PIONEER_E_CONFIG = (
 )
 
 
-def _run_e_training(req: ERunRequest, stop_event: threading.Event) -> None:
-    import yaml
+def _build_e_run_config(req: ERunRequest, run_name: str) -> Path:
+    """Derive the E-run YAML from the pioneer config, applying only E-run knobs."""
+    if not _PIONEER_E_CONFIG.exists():
+        raise RuntimeError(f"E-run config not found: {_PIONEER_E_CONFIG}")
+    cfg = yaml.safe_load(_PIONEER_E_CONFIG.read_text(encoding="utf-8")) or {}
+    # Apply only the E-run knobs; geometry wiring stays exactly as the pioneer config.
+    cfg["run_name"] = run_name
+    cfg["input_axt_path"] = req.input_axt_path
+    cfg["max_steps"] = int(req.max_steps)
+    cfg["seed"] = int(req.seed)
+    cfg["precision"] = req.precision
+    cfg["output_dir"] = req.output_dir
+    budget = dict(cfg.get("compute_budget_config") or {})
+    budget["max_train_steps"] = int(req.max_steps)
+    cfg["compute_budget_config"] = budget
+    if req.learning_rate is not None:
+        cfg["learning_rate"] = float(req.learning_rate)
+    if req.micro_batch_size is not None:
+        mb = max(1, int(req.micro_batch_size))
+        cfg["micro_batch_size"] = mb
+        cfg["global_batch_size"] = mb
+        cfg["gradient_accumulation_steps"] = 1
+    run_dir = RUNS_ROOT / run_name
+    run_dir.mkdir(parents=True, exist_ok=True)
+    derived = run_dir / "e_run.yaml"
+    derived.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    return derived
 
+
+def _run_e_training(req: ERunRequest, stop_event: threading.Event) -> None:
     run_name = req.run_name or f"e_run_{int(time.time())}"
     try:
         with _job_lock:
@@ -1212,30 +1238,8 @@ def _run_e_training(req: ERunRequest, stop_event: threading.Event) -> None:
             _current_job["run_dir"] = None
         _persist_current_job(run_name, "running")
         _set_stage("preparing", run_name)
-        if not _PIONEER_E_CONFIG.exists():
-            raise RuntimeError(f"E-run config not found: {_PIONEER_E_CONFIG}")
-        cfg = yaml.safe_load(_PIONEER_E_CONFIG.read_text(encoding="utf-8")) or {}
-        # Apply only the E-run knobs; geometry wiring stays exactly as the pioneer config.
-        cfg["run_name"] = run_name
-        cfg["input_axt_path"] = req.input_axt_path
-        cfg["max_steps"] = int(req.max_steps)
-        cfg["seed"] = int(req.seed)
-        cfg["precision"] = req.precision
-        cfg["output_dir"] = req.output_dir
-        budget = dict(cfg.get("compute_budget_config") or {})
-        budget["max_train_steps"] = int(req.max_steps)
-        cfg["compute_budget_config"] = budget
-        if req.learning_rate is not None:
-            cfg["learning_rate"] = float(req.learning_rate)
-        if req.micro_batch_size is not None:
-            mb = max(1, int(req.micro_batch_size))
-            cfg["micro_batch_size"] = mb
-            cfg["global_batch_size"] = mb
-            cfg["gradient_accumulation_steps"] = 1
-        run_dir = RUNS_ROOT / run_name
-        run_dir.mkdir(parents=True, exist_ok=True)
-        derived = run_dir / "e_run.yaml"
-        derived.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+        derived = _build_e_run_config(req, run_name)
+        run_dir = derived.parent
         with _job_lock:
             _current_job["run_dir"] = str(run_dir)
         _append_log("[ui] Arm E — structured-native + learned geometry")
@@ -1278,7 +1282,7 @@ def _run_e_training(req: ERunRequest, stop_event: threading.Event) -> None:
                 f"axiom train run exited with code {rc}. If the geometry guard fired, the model "
                 "config is not in geometry_provider_injected mode (see log above)."
             )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         with _job_lock:
             _current_job["error"] = str(e)
         _append_log(f"[ui][ERROR] {e}")
@@ -1717,7 +1721,7 @@ async def _fs_poller() -> None:  # noqa: PLR0912
 
 @app.on_event("startup")
 async def _startup() -> None:
-    global _MAIN_LOOP
+    global _MAIN_LOOP  # noqa: PLW0603
     _MAIN_LOOP = asyncio.get_running_loop()
     asyncio.create_task(_fs_poller())  # noqa: RUF006
 
