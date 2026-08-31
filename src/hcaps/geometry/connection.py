@@ -71,9 +71,7 @@ class LearnedConnection(nn.Module):
         edges = edge_context.shape[0]
         generators = self.generator(edge_context.float()).reshape(edges, n, n) * self.scale
         generators = _bound_norm(generators, self.config.connection_max_norm)
-        transports = transport_from_connection(
-            generators, operator=self.config.transport_operator
-        )
+        transports = transport_from_connection(generators, operator=self.config.transport_operator)
         return ConnectionOutput(
             connection_matrices=generators,
             transport_matrices=transports,
@@ -88,7 +86,8 @@ def _bound_norm(generators: Tensor, max_norm: float) -> Tensor:
     edges = generators.shape[0]
     norm = generators.reshape(edges, -1).norm(dim=-1).clamp_min(1e-6)
     factor = (max_norm / norm).clamp_max(1.0).reshape(edges, 1, 1)
-    return generators * factor
+    scaled: Tensor = generators * factor
+    return scaled
 
 
 def transport_from_connection(connection: Tensor, *, operator: TransportOperator) -> Tensor:

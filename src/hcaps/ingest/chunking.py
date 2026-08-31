@@ -192,7 +192,7 @@ def _split_block(
     return _apply_overlap(document, chunks, config.chunk_overlap_chars)
 
 
-def _make_chunk(
+def _make_chunk(  # noqa: PLR0917
     document: SourceDocument,
     text: str,
     start_char: int,

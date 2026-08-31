@@ -383,8 +383,7 @@ class LearnedGeometryModule(nn.Module):
         context_features: torch.Tensor | None = None,
         temporal_features: torch.Tensor | None = None,
         masks: GeometryMasks | None = None,
-    ) -> GeometryOutput:
-        ...
+    ) -> GeometryOutput: ...
 ```
 
 Where:
@@ -546,19 +545,19 @@ class ClaimFieldGraphBatch:
     node_type_ids: torch.LongTensor
     node_to_claim_state: torch.LongTensor | None
 
-    relation_edge_index: torch.LongTensor          # [2, num_edges]
-    relation_type_ids: torch.LongTensor            # [num_edges]
+    relation_edge_index: torch.LongTensor  # [2, num_edges]
+    relation_type_ids: torch.LongTensor  # [num_edges]
     relation_confidence: torch.FloatTensor | None  # [num_edges]
 
     context_node_ids: list[str]
-    context_edge_index: torch.LongTensor           # [2, num_context_edges]
+    context_edge_index: torch.LongTensor  # [2, num_context_edges]
     context_transition_type_ids: torch.LongTensor  # [num_context_edges]
 
-    path_edge_index: torch.LongTensor              # [num_paths, max_path_len]
-    path_mask: torch.BoolTensor                    # [num_paths, max_path_len]
+    path_edge_index: torch.LongTensor  # [num_paths, max_path_len]
+    path_mask: torch.BoolTensor  # [num_paths, max_path_len]
 
-    loop_path_index: torch.LongTensor              # [num_loops, max_loop_len]
-    loop_mask: torch.BoolTensor                    # [num_loops, max_loop_len]
+    loop_path_index: torch.LongTensor  # [num_loops, max_loop_len]
+    loop_mask: torch.BoolTensor  # [num_loops, max_loop_len]
 
     hyperedge_incidence: HyperedgeIncidence | None
     temporal_features: torch.FloatTensor | None
@@ -941,10 +940,10 @@ Example:
 
 ```python
 {
-  "connection_norm": tensor,
-  "loop_curvature": tensor,
-  "path_consistency": tensor,
-  "context_smoothness": tensor,
+    "connection_norm": tensor,
+    "loop_curvature": tensor,
+    "path_consistency": tensor,
+    "context_smoothness": tensor,
 }
 ```
 
@@ -1040,8 +1039,7 @@ But relation type must not become a truth label.
 Provide at least one function that converts hyperedge incidence into pairwise expansion for P5's first implementation, while preserving hyperedge ids and roles.
 
 ```python
-def expand_hyperedges_to_pairwise(incidence: HyperedgeIncidence) -> PairwiseExpansion:
-    ...
+def expand_hyperedges_to_pairwise(incidence: HyperedgeIncidence) -> PairwiseExpansion: ...
 ```
 
 Later P5/P6 extensions may replace this with native hypergraph message passing.
@@ -1243,8 +1241,7 @@ Diagnostics must be JSON-safe when exported.
 P5 should provide a function:
 
 ```python
-def geometry_output_to_axc_out_fields(output: GeometryOutput) -> dict[str, Any]:
-    ...
+def geometry_output_to_axc_out_fields(output: GeometryOutput) -> dict[str, Any]: ...
 ```
 
 Allowed export shape:

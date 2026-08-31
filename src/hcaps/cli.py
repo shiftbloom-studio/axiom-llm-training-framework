@@ -14,6 +14,7 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
+from hcaps import pipeline_cli
 from hcaps.axt import (
     AxtBatchCollator,
     AxtCompileConfig,
@@ -73,8 +74,6 @@ from hcaps.training.logging import write_json
 from hcaps.utils.time import utc_now
 from hcaps.verdict import VerdictThresholds, generate_verdict, write_verdict_report
 from hcaps.verdict.report import inspect_verdict
-
-from hcaps import pipeline_cli
 
 app = typer.Typer(help="Axiom claim-field substrate tools.")
 format_app = typer.Typer(help="AXF/AXC format commands.")
@@ -442,7 +441,7 @@ def _print_pipeline_success(final_dir: Path, run_name: str) -> None:
 
 
 @app.command("build-substrate")
-def build_substrate_command(
+def build_substrate_command(  # noqa: PLR0917
     input_path: Annotated[Path, typer.Option("--input", help="Source file or directory.")],
     output_path: Annotated[Path, typer.Option("--output", help="Output capsules JSONL path.")],
     manifest_path: Annotated[
@@ -671,7 +670,7 @@ def _parse_cutoff_date(value: str | None) -> date | None:
 
 
 @axt_app.command("compile")
-def axt_compile_command(
+def axt_compile_command(  # noqa: PLR0917
     input_path: Annotated[Path, typer.Option("--input", help="AXC stream or AXP package.")],
     output_path: Annotated[Path, typer.Option("--output", help="Output .axt bundle directory.")],
     config_path: Annotated[
@@ -1673,7 +1672,7 @@ def package_inspect_command(
 
 
 @falsify_app.command("run")
-def falsify_run_command(
+def falsify_run_command(  # noqa: PLR0917
     input_path: Annotated[Path, typer.Argument(help="AXC file or AXP package path.")],
     output_dir: Annotated[Path, typer.Option("--output-dir", help="Output directory root.")],
     arms: Annotated[

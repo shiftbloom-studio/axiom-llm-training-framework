@@ -30,7 +30,9 @@ import yaml
 from rich.console import Console
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-PIONEER_E_CONFIG = PROJECT_ROOT / "configs" / "training" / "pioneer_e_structured_native_geometry.yaml"
+PIONEER_E_CONFIG = (
+    PROJECT_ROOT / "configs" / "training" / "pioneer_e_structured_native_geometry.yaml"
+)
 HARVEST_ROOT = PROJECT_ROOT / "data" / "harvest"
 PREPARED_ROOT = PROJECT_ROOT / "artifacts" / "axt"
 
@@ -123,7 +125,9 @@ def run_harvest(*, interactive: bool = True) -> Path:
             raise typer.Exit(1)
         _brave_search(query, limit, key, out_dir)
     else:  # firecrawl
-        targets = [u.strip() for u in _ask("URLs to scrape (comma-separated)").split(",") if u.strip()]
+        targets = [
+            u.strip() for u in _ask("URLs to scrape (comma-separated)").split(",") if u.strip()
+        ]
         key = os.environ.get("FIRECRAWL_API_KEY") or _ask("Firecrawl API key", "", hide=True)
         _firecrawl_scrape(targets, key, out_dir)
 
@@ -142,14 +146,14 @@ def _write_doc(out_dir: Path, name: str, title: str, body: str, meta: dict[str, 
 
 def _brave_search(query: str, limit: int, key: str, out_dir: Path) -> None:
     params = urllib.parse.urlencode({"q": query or " ", "count": min(limit, 20)})
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         f"https://api.search.brave.com/res/v1/web/search?{params}",
         headers={"Accept": "application/json", "X-Subscription-Token": key},
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         console.print(f"  [red]brave search failed: {exc}[/red]")
         return
     results = (data.get("web", {}) or {}).get("results", [])[:limit]
@@ -168,9 +172,9 @@ def _brave_search(query: str, limit: int, key: str, out_dir: Path) -> None:
 def _fetch_urls(urls: list[str], out_dir: Path) -> None:
     for i, u in enumerate(urls):
         try:
-            with urllib.request.urlopen(u, timeout=15) as r:  # noqa: S310
+            with urllib.request.urlopen(u, timeout=15) as r:
                 body = r.read().decode("utf-8", errors="replace")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             console.print(f"  [yellow]skip {u}: {exc}[/yellow]")
             continue
         _write_doc(
@@ -183,7 +187,7 @@ def _firecrawl_scrape(targets: list[str], key: str, out_dir: Path) -> None:
         console.print("  [red]a Firecrawl API key is required[/red]")
         return
     try:
-        from firecrawl import FirecrawlApp  # type: ignore  # noqa: PLC0415
+        from firecrawl import FirecrawlApp  # noqa: PLC0415
     except ImportError:
         console.print("  [red]firecrawl-py not installed (uv pip install firecrawl-py)[/red]")
         return
@@ -192,10 +196,16 @@ def _firecrawl_scrape(targets: list[str], key: str, out_dir: Path) -> None:
         try:
             res = app.scrape_url(t, params={"formats": ["markdown"]})
             body = (res or {}).get("markdown", "") if isinstance(res, dict) else str(res)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             console.print(f"  [yellow]skip {t}: {exc}[/yellow]")
             continue
-        _write_doc(out_dir, f"firecrawl_{i:02d}", t, body[:20000], {"source_url": t, "provider": "firecrawl"})
+        _write_doc(
+            out_dir,
+            f"firecrawl_{i:02d}",
+            t,
+            body[:20000],
+            {"source_url": t, "provider": "firecrawl"},
+        )
 
 
 # --------------------------------------------------------------------------------------
@@ -232,13 +242,40 @@ def _integrated_provider(server: Any) -> Any:
     )
 
 
+def _compile_pipeline_axt(package_path: Path, run_dir: Path, run_name: str) -> Path:
+    """Compile the corpus package into the run's AXT tensor bundle."""
+    from hcaps.axt.compiler import compile_axt  # noqa: PLC0415
+    from hcaps.axt.config import AxtCompileConfig  # noqa: PLC0415
+
+    axt_path = run_dir / "axt" / f"{run_name}.axt"
+    axt_cfg = AxtCompileConfig(
+        input_path=package_path,
+        output_path=axt_path,
+        allow_all_without_split=True,
+        max_text_length=128,
+        include_provider_context=True,
+        include_relation_neighborhoods=True,
+        include_negative_samples=True,
+        include_geometry_slots=True,
+        include_evaluation_references=False,
+        strict_temporal_masks=True,
+        strict_schema_validation=True,
+        hash_artifacts=True,
+        seed=13,
+    )
+    console.print("  [bold]compiling AXT tensor bundle…[/bold]")
+    axt_res = compile_axt(axt_cfg, force=True)
+    console.print(
+        f"  [green]dataset ready:[/green] {axt_path} ({axt_res.manifest.record_count} records)"
+    )
+    return axt_path
+
+
 def run_prepare(*, sources: Path | None = None) -> Path:
     """Build the corpus + compile the AXT bundle from source documents.
 
     Returns the path to the compiled .axt bundle (the input to training).
     """
-    from hcaps.axt.config import AxtCompileConfig  # noqa: PLC0415
-    from hcaps.axt.compiler import compile_axt  # noqa: PLC0415
     from hcaps.corpus.builder import build_corpus  # noqa: PLC0415
     from hcaps.corpus.manifest import CorpusBuildConfig  # noqa: PLC0415
     from hcaps.providers.llama_server_runtime import (  # noqa: PLC0415
@@ -313,25 +350,7 @@ def run_prepare(*, sources: Path | None = None) -> Path:
         f"capsules={corpus_result.manifest.capsule_count}"
     )
 
-    axt_path = run_dir / "axt" / f"{run_name}.axt"
-    axt_cfg = AxtCompileConfig(
-        input_path=corpus_result.package_path,
-        output_path=axt_path,
-        allow_all_without_split=True,
-        max_text_length=128,
-        include_provider_context=True,
-        include_relation_neighborhoods=True,
-        include_negative_samples=True,
-        include_geometry_slots=True,
-        include_evaluation_references=False,
-        strict_temporal_masks=True,
-        strict_schema_validation=True,
-        hash_artifacts=True,
-        seed=13,
-    )
-    console.print("  [bold]compiling AXT tensor bundle…[/bold]")
-    axt_res = compile_axt(axt_cfg, force=True)
-    console.print(f"  [green]dataset ready:[/green] {axt_path} ({axt_res.manifest.record_count} records)")
+    axt_path = _compile_pipeline_axt(corpus_result.package_path, run_dir, run_name)
     return axt_path
 
 
