@@ -818,14 +818,17 @@ class ProviderRequest(BaseModel):
     template_version: str
     context: dict[str, Any]
 
+
 class ProviderResponse(BaseModel):
     provider_trace: ProviderTrace
     normalized_output: dict[str, Any]
     confidence: float | None
     warnings: list[str]
 
+
 class ExtractionProvider(Protocol):
     provider_id: str
+
     def run(self, request: ProviderRequest) -> ProviderResponse: ...
 ```
 
