@@ -44,7 +44,7 @@ class TrainingBridgeManifest:
         return cls(**data)
 
     @staticmethod
-    def create(
+    def create(  # noqa: PLR0917
         input_path: str,
         input_hash: str | None,
         tokenizer_type: str,

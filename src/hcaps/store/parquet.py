@@ -73,7 +73,7 @@ class ParquetCapsuleStore:
             ]
         )
         table = pa.Table.from_pylist(rows, schema=schema)
-        pq.write_table(table, output_path)  # type: ignore[no-untyped-call]
+        pq.write_table(table, output_path)
         return StoreWriteResult(
             path=output_path,
             record_count=len(rows),
@@ -81,7 +81,7 @@ class ParquetCapsuleStore:
         )
 
     def read_capsules(self, path: PathLike) -> Iterator[HoloCapsule]:
-        table = pq.read_table(Path(path))  # type: ignore[no-untyped-call]
+        table = pq.read_table(Path(path))
         for row_number, row in enumerate(table.to_pylist(), start=1):
             record_json = row.get("record_json")
             if not isinstance(record_json, str):

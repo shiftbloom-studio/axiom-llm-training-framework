@@ -324,28 +324,39 @@ def test_axiom_full_uses_integrated_llama_server(monkeypatch, tmp_path: Path) ->
         finally:
             called["server_alive"] = False
 
-    def fake_build_corpus(**kw: object) -> object:
+    def fake_build_corpus(config: object, **kw: object) -> object:
         called.update(kw)
+        called["corpus_config"] = config
+        called["providers"] = getattr(config, "providers", None)
         called["server_alive_during_corpus"] = called["server_alive"]
-        return SimpleNamespace(package_path=tmp_path / "dataset.axp")
+        # A path that cannot exist: if the real AXT compiler ever runs here, it fails loudly.
+        return SimpleNamespace(
+            package_path=tmp_path / "missing" / "dataset.axp",
+            manifest=SimpleNamespace(source_count=3, capsule_count=11),
+        )
 
-    def fake_after_corpus(**kw: object) -> Path:
-        called["server_alive_during_after_corpus"] = called["server_alive"]
-        called["trainer_template"] = kw["trainer_template"]
-        rd = tmp_path / str(kw.get("run_name", "x"))
-        rd.mkdir(parents=True, exist_ok=True)
-        (rd / "verdict").mkdir(exist_ok=True)
-        (rd / "verdict" / "report.md").write_text("# ok\n", encoding="utf-8")
-        return rd
+    def fake_run_train(*, dataset: Path, **kw: object) -> Path:
+        called["server_alive_during_train"] = called["server_alive"]
+        called["train_dataset"] = dataset
+        return tmp_path / "run"
 
-    monkeypatch.setattr("hcaps.cli.start_llama_server", fake_start_llama_server)
-    monkeypatch.setattr("hcaps.cli._build_full_pipeline_corpus", fake_build_corpus)
-    monkeypatch.setattr("hcaps.cli._execute_full_pipeline_after_corpus", fake_after_corpus)
-    monkeypatch.setattr("hcaps.cli._default_full_run_name", lambda profile: f"full_{profile}_fixed")
-    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
+    def fake_axt_compile(config: object, *, force: bool = False) -> object:
+        called["axt_input_path"] = getattr(config, "input_path", None)
+        called["axt_force"] = force
+        return SimpleNamespace(manifest=SimpleNamespace(record_count=7))
+
+    # pipeline_cli imports these inside its functions, so patch the source modules.
+    monkeypatch.setattr(
+        "hcaps.providers.llama_server_runtime.start_llama_server", fake_start_llama_server
+    )
+    monkeypatch.setattr("hcaps.corpus.builder.build_corpus", fake_build_corpus)
+    monkeypatch.setattr("hcaps.axt.compiler.compile_axt", fake_axt_compile)
+    monkeypatch.setattr("hcaps.pipeline_cli.run_train", fake_run_train)
+    monkeypatch.setattr("hcaps.pipeline_cli.PROJECT_ROOT", tmp_path)
 
     runner = CliRunner()
-    inp = "\n\nsmoke\nintegrated\nggml-org/test-GGUF:Q4_K_M\n\n"
+    # full: no harvest, default source folder, extraction model, no advanced corpus
+    inp = "\n\nggml-org/test-GGUF:Q4_K_M\n\n"
     res = runner.invoke(app, ["full"], input=inp)
 
     assert res.exit_code == 0, res.output
@@ -357,49 +368,39 @@ def test_axiom_full_uses_integrated_llama_server(monkeypatch, tmp_path: Path) ->
     assert providers.primary.provider_id == "integrated_llama_server"
     assert providers.primary.provider_mode == "local"
     assert providers.primary.model == "ggml-org/test-GGUF:Q4_K_M"
-    assert providers.escalation is not None
-    assert providers.escalation.provider_id == "perplexity_sonar_escalation"
-    assert providers.escalation.provider_family == "perplexity_sonar"
-    assert providers.escalation.provider_mode == "remote"
-    assert providers.escalation.base_url == "https://api.perplexity.ai"
-    assert providers.escalation.api_key_env == "PERPLEXITY_API_KEY"
-    assert providers.cascade.enabled is True
-    trainer_template = called["trainer_template"]
-    assert isinstance(trainer_template, TrainingConfig)
-    assert trainer_template.max_steps == 2
-    assert called["run_name"] == "full_smoke_fixed"
+    assert providers.escalation is None
+    assert providers.cascade.enabled is False
     assert called["server_alive_during_corpus"] is True
-    assert called["server_alive_during_after_corpus"] is False
+    assert called["server_alive_during_train"] is False
+    assert called["axt_force"] is True
+    train_dataset = called["train_dataset"]
+    assert isinstance(train_dataset, Path)
+    assert train_dataset.name.endswith(".axt")
 
 
-def test_axiom_full_uses_remote_provider_and_training_size(monkeypatch, tmp_path: Path) -> None:
+def test_axiom_train_uses_pioneer_config_and_steps(monkeypatch, tmp_path: Path) -> None:
+    """`axiom train` derives its config from the pioneer E config + prompt answers."""
     called: dict[str, object] = {}
 
-    def fake_execute(**kw: object) -> Path:
-        called.update(kw)
-        rd = tmp_path / str(kw.get("run_name", "x"))
-        rd.mkdir(parents=True, exist_ok=True)
-        (rd / "verdict").mkdir(exist_ok=True)
-        (rd / "verdict" / "report.md").write_text("# ok\n", encoding="utf-8")
-        return rd
+    class FakeTrainer:
+        def __init__(self, config: TrainingConfig) -> None:
+            called["config"] = config
 
-    monkeypatch.setattr("hcaps.cli._execute_full_pipeline", fake_execute)
-    monkeypatch.setattr("hcaps.cli._default_full_run_name", lambda profile: f"full_{profile}_fixed")
-    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
+        def fit(self) -> SimpleNamespace:
+            return SimpleNamespace(arm_dir=tmp_path / "arm", run_dir=tmp_path / "run")
+
+    monkeypatch.setattr("hcaps.training.trainer.AxiomTrainer", FakeTrainer)
 
     runner = CliRunner()
-    inp = "\n\npilot\nremote\nsonar-pro\n"
-    res = runner.invoke(app, ["full"], input=inp)
+    inp = "artifacts/axt/pioneer.axt\n20\n\n"  # dataset, steps, no advanced
+    res = runner.invoke(app, ["train"], input=inp)
 
     assert res.exit_code == 0, res.output
-    providers = called["providers"]
-    assert isinstance(providers, ProviderIngressConfig)
-    assert providers.primary.provider_id == "perplexity_sonar_primary"
-    assert providers.primary.provider_family == "perplexity_sonar"
-    assert providers.primary.provider_mode == "remote"
-    assert providers.primary.model == "sonar-pro"
-    assert providers.primary.base_url == "https://api.perplexity.ai"
-    trainer_template = called["trainer_template"]
-    assert isinstance(trainer_template, TrainingConfig)
-    assert trainer_template.max_steps == 20
-    assert trainer_template.compute_budget_config.max_records_seen == 256
+    config = called["config"]
+    assert isinstance(config, TrainingConfig)
+    assert config.max_steps == 20
+    assert config.compute_budget_config.max_train_steps == 20
+    assert config.geometry_provider_kind == "learned"
+    assert config.seed == 13  # pioneer default preserved when advanced is skipped
+    assert config.input_axt_path is not None
+    assert str(config.input_axt_path).endswith("pioneer.axt")
