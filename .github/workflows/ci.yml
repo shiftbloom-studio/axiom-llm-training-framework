@@ -18,29 +18,23 @@ jobs:
       - name: Create Python 3.14 environment
         run: |
           uv python install 3.14
-          uv venv --python 3.14 --seed venv
 
-      - name: Install package
+      - name: Install package (locked)
         run: |
-          source venv/bin/activate
-          python -m pip install -e '.[dev]'
+          uv sync --locked --all-extras
 
       - name: Ruff check
         run: |
-          source venv/bin/activate
-          ruff check .
+          uv run --no-sync ruff check .
 
       - name: Ruff format
         run: |
-          source venv/bin/activate
-          ruff format --check .
+          uv run --no-sync ruff format --check .
 
       - name: Mypy
         run: |
-          source venv/bin/activate
-          mypy src
+          uv run --no-sync mypy src
 
       - name: Pytest
         run: |
-          source venv/bin/activate
-          pytest --cov=hcaps
+          uv run --no-sync pytest --cov=hcaps
