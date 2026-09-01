@@ -29,12 +29,14 @@ dependencies = [
 axiom = "hcaps.cli:app"
 
 [project.optional-dependencies]
+# Exact pins: the quality gate must be reproducible. Dependabot bumps these
+# one at a time (pyproject + uv.lock together); CI installs from uv.lock.
 dev = [
-  "mypy>=1.16.0",
-  "pre-commit>=4.2.0",
-  "pytest>=8.4.0",
-  "pytest-cov>=6.2.0",
-  "ruff>=0.12.0",
+  "mypy==2.3.1",
+  "pre-commit==4.6.2",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+  "ruff==0.16.5",
 ]
 
 [tool.uv]
