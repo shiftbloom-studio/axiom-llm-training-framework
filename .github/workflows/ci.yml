@@ -8,7 +8,9 @@ on:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: Default
+      labels: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v4
 
