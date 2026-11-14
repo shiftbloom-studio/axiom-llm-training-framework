@@ -53,6 +53,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
+from .public_url import read_public_http_text
+
 # --------------------------------------------------------------------------------------
 # Project root + path discipline (mirrors bin/axiom, never mutates core)
 # --------------------------------------------------------------------------------------
@@ -1513,10 +1515,7 @@ async def api_harvest(payload: dict | None = Body(default=None)) -> JSONResponse
     if tool == "fetch" and urls:
         for i, u in enumerate(urls[:count]):
             try:
-                import urllib.request  # noqa: PLC0415
-
-                with urllib.request.urlopen(u, timeout=12) as r:
-                    raw = r.read().decode("utf-8", "ignore")[:200000]
+                raw = read_public_http_text(u, timeout=12)
                 title = u.split("/")[-1] or f"page-{i}"
                 p = out_dir / f"fetched_{i:02d}_{_safe(title)}.txt"
                 meta = {"title": title, "source_url": u, "provider": "fetch", "query": query}
