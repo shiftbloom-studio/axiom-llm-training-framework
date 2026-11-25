@@ -23,3 +23,4 @@ uv.lock.tmp
 # UI runtime / preview caches
 /ui/.ui-data/
 /ui/.runs-cache/
+/ui/.ui-current-job.json

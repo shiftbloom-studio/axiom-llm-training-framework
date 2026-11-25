@@ -1,0 +1,30 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact `axiom` command and config file, if possible with one of the bundled fixtures.
+      placeholder: "1. ./bin/axiom axt compile --input examples/axf/v0_1/minimal_dataset.axp ...\n2. ..."
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python version (`python --version`), torch version, CPU/GPU
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or traceback
+      description: Remove API keys and private corpus content before pasting.
+      render: text

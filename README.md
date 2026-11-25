@@ -1,40 +1,28 @@
 # Axiom
 
-**Axiom is a structured-native LLM training framework.**
+**A structured-native LLM training framework for claim-field data.**
 
-Axiom tests whether structured claim-field training (with native geometry) improves epistemic competence compared with flat text under matched source content, temporal cutoffs, splits, extraction substrate, parameter budgets, compute/FLOPs, and training schedules where applicable. Primary fairness uses the full matched set for structured-native vs. flat arms; token parity applies only inside text-rendered arms and text-projection losses.
+[![CI](https://github.com/shiftbloom-studio/axiom-llm-training-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/shiftbloom-studio/axiom-llm-training-framework/actions/workflows/ci.yml)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
+![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)
 
-The framework remains LLM-compatible through text projection (for baselines, comparability, and optional human-facing output), token baselines, text-rendered arms, and secondary text losses. Text projection is the compatibility and evaluation interface, not the native representation. The primary substrate, encoder input, conditioning, core, decoder, and emission (AXC-out) are structured claim-field data and tensors: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, provider traces, negative pools, and native learned geometry (nullable/masked gauge-invariant observables, ablatable).
+Axiom asks one research question: does a model trained on structured claims learn epistemic competence better than the same model trained on flat text? Both sides get the same source content, temporal cutoffs, splits, extraction substrate, parameter budget, compute and training schedule. Token parity is only enforced inside the text-rendered arms.
 
-AXC-out (structured model emission before interpretation) and AXT (tensor bundle) are first-class visible interfaces alongside AXC/AXP/AXF. Text is secondary projection only.
+Instead of feeding a causal LM tokenized prose, Axiom trains on claim-field records: claim identity, provenance, relations, epistemic state, temporal scope, lateral context, provider traces, negative pools and a learned geometry over the claim graph. The model emits structured output (AXC-out). Text projection exists for baselines, comparison with ordinary LLMs and human-readable output, and it stays a secondary interface.
 
-Text is a projection and comparison interface. AXC, AXT, and AXC-out are the primary structured interfaces.
+> **Research status.** Axiom is pre-release research code. The full pipeline runs end to end at smoke and mini scale, but this repository makes no benchmark or model-performance claim.
 
-## Status
+## What's in the box
 
-Current repository status:
+- **Corpus ingress.** Deterministic, local (`llama-server`) and remote providers build a claim-field substrate from source documents, with replayable caches, trace and disagreement manifests, source registries and negative pools.
+- **Formats.** AXF v1 with AXC capsule streams, AXP dataset packages and AXT tensor bundles, plus field and vocabulary registries, masks and negative sampling specs in [`spec/`](spec/).
+- **AXT compiler.** Turns an AXP package into a safetensors bundle with inputs, targets, masks, relation neighbourhoods and geometry slots, and ships a runtime dataset and batch interface.
+- **Model stack.** A torch-native structured encoder with relation, provenance, provider and context conditioning, an epistemic router, a structured decoder, the AXC-out emission boundary and a text projection head.
+- **Learned geometry.** Skew connections, matrix-exponential transport, bounded loop sampling and gauge-invariant observables. Every geometry component can be switched off for ablations.
+- **Experiment runtime.** Training, experiment suites with separable arms (flat text through structured-native with geometry), scoring, a verdict ladder, and `inspect` / `export` / `compare` commands for runs.
+- **Operator UI (optional).** A small local web UI in [`ui/`](ui/README.md) that prepares the same YAML configs and watches runs.
 
-- Foundation, substrate, AXF/AXC/AXP format support, provider-aware P1 corpus ingress, a lightweight training bridge, and falsification-preparation artifacts exist.
-- P1 adds deterministic/local/remote-compatible data-construction providers, replayable provider caches, trace/disagreement manifests, source registries, negative pools, gold-reference candidate hooks, and a tiny synthetic ML/software benchmark corpus fixture.
-- P2 defines AXF v1, AXC v1, AXP v1, AXT v1, AXC-out v1, field/vocabulary registries, masks, negative sampling, provider traces, and interpreter boundaries.
-- P3 implements the AXT compiler, safetensors bundle writer/reader, runtime dataset/batch interface, inspection/validation CLI, provider-context tensors, negative-sample tensors, relation neighborhoods, geometry slots, text projection tensors, targets, and masks.
-- P4 implements the first torch-native structured model stack: typed AXT input adapter, field embeddings, structured encoder, relation/provenance/provider/context conditioning, full-complexity core, epistemic router, structured decoder, AXC-out raw emission boundary, text projection head, geometry hooks, ablations, diagnostics, serialization, and model developer CLI.
-- P5 implements the torch-native learned claim-field geometry module: graph batches, lateral context transitions, learned skew connections, matrix-exp transport, bounded loop sampling, gauge-invariant observables, regularizers, controls, P4 integration, reference checks, configs, CLI, and tests.
-- P6 implements the local training, experiment orchestration, scoring, verdict, and operator runtime for smoke and mini-run configurations.
-- AXC-out now has a P4 raw emission path, P5 gauge-invariant geometry fields, P6 masked multi-objective losses, and separate raw/validated/interpreted/text scoring artifacts.
-- No benchmark or model-performance claim is made by this repository.
-
-The next action after the P6 and post-P6 hardening passes is:
-
-```text
-Review docs/work/POST_P6_HARDENING_AUDIT.md and choose the next research-readiness or external-review work item.
-```
-
-Readiness artifacts for reviewers and sponsors:
-- `docs/REVIEWER_GUIDE.md` (concise orientation + how to reproduce runs)
-- `docs/SPONSOR_ONE_PAGER.md` + `docs/assets/axiom-sponsor-onepager.jpg` (visual + text one-pager)
-
-P1-P3 are substrate/interface/compiler work only. They do not train the model or produce an evaluation verdict.
+Reviewers should start with [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md). The current work item is tracked in [docs/work/IMPLEMENTATION_ROADMAP.md](docs/work/IMPLEMENTATION_ROADMAP.md).
 
 ## Format Family
 
@@ -99,7 +87,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Fish users: `source .venv/bin/activate.fish`
+Fish users can run `source .venv/bin/activate.fish` instead.
 
 ### Day-to-day usage
 
@@ -109,7 +97,7 @@ The primary supported CLI path is the wrapper:
 ./bin/axiom --help
 ```
 
-With the personal fish/Ghostty integration, the bare name is available from any directory:
+If you put `bin/` on your `PATH`, the bare name works from any directory:
 
 ```bash
 axiom --help
@@ -144,7 +132,7 @@ The examples below use the bare `axiom` name for readability.
 Inside the checkout the reliable invocation is:
 
 - `./bin/axiom ...` (most reliable)
-- `axiom ...` (with `bin/` on PATH, including the personal fish/Ghostty setup)
+- `axiom ...` (with `bin/` on your `PATH`)
 
 Validate an AXC stream:
 
@@ -329,6 +317,14 @@ Start with:
 
 The internal Python package is still named `hcaps` for legacy compatibility. Public documentation should use Axiom terminology.
 
+## Contributing
+
+Bug reports, reproductions and focused pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and checks, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for how we work together. Please report security issues privately as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+Copyright (C) 2026 Shiftbloom Studio.
+
+Axiom is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE) for the full text.
+
+If you run a modified version of Axiom (including the operator UI) as a network service, the AGPL asks you to offer its source code to the users of that service.
