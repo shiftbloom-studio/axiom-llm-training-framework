@@ -1,8 +1,5 @@
 name: CI
 
-permissions:
-  contents: read
-
 on:
   push:
     branches: [main]
@@ -11,8 +8,9 @@ on:
 
 jobs:
   quality:
-    # Pull requests from forks never run on the self-hosted runners.
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('{"group":"Default","labels":["self-hosted","linux","x64"]}') }}
+    runs-on:
+      group: Default
+      labels: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v4
 

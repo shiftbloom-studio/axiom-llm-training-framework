@@ -15,5 +15,9 @@ Current historical source files:
 - `HoloCapsule_Claim_Field_Pretraining_Architecture.md`
 - `HoloCapsule_Execution_Plan.md`
 - `HoloCapsule_Project_Knowledge.md`
+- `LLM-Training Best Practices.txt`
+- `compass_artifact_wf-b7baa676-f2d3-431a-8390-688218cd6ce2_text_markdown.md`
+- `deep-research-report (1).md`
+- `deep-research-report.md`
 
 Promoted datasets should reference source files through manifests with content hashes. Application code should depend on normalized schema records, not these notes directly.
