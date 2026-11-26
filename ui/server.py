@@ -69,6 +69,51 @@ RUNS_ROOT.mkdir(parents=True, exist_ok=True)
 
 UI_STATE_FILE = HERE / ".ui-current-job.json"
 
+
+# --------------------------------------------------------------------------------------
+# Path safety: names and paths from requests never leave the directories they belong to
+# --------------------------------------------------------------------------------------
+def _contained(root: Path, *parts: str) -> Path:
+    """`root / parts`, refusing anything that normalizes to a path outside `root`."""
+    base = os.path.normpath(os.path.abspath(root))
+    full = os.path.normpath(os.path.join(base, *parts))
+    if not full.startswith(base + os.sep):
+        raise HTTPException(400, "path escapes its directory")
+    return Path(full)
+
+
+def _run_path(root: Path, run_name: str, *parts: str) -> Path:
+    """Directory (or file inside it) of a run named by the client, kept under `root`."""
+    return _contained(root, str(run_name), *parts)
+
+
+def _allowed_roots() -> list[str]:
+    """Where user-chosen local paths (corpus input, provider cache) may live.
+
+    The project checkout and the home directory, plus any extra roots listed in
+    AXIOM_UI_ALLOWED_ROOTS (separated by os.pathsep).
+    """
+    roots = [PROJECT_ROOT, Path.home()]
+    extra = os.environ.get("AXIOM_UI_ALLOWED_ROOTS", "")
+    roots += [Path(r).expanduser() for r in extra.split(os.pathsep) if r.strip()]
+    return [os.path.realpath(r) for r in roots]
+
+
+def _user_path(raw: str | os.PathLike[str]) -> Path:
+    """Resolve a local path from a request (like Path.resolve()) inside an allowed root."""
+    full = os.path.realpath(os.path.expanduser(os.fspath(raw)))
+    for root in _allowed_roots():
+        if full == root:
+            return Path(root)
+        if full.startswith(root.rstrip(os.sep) + os.sep):
+            return Path(full)
+    raise HTTPException(
+        400,
+        "path is outside the project and home directory; "
+        "add its parent to AXIOM_UI_ALLOWED_ROOTS to allow it",
+    )
+
+
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
@@ -509,14 +554,14 @@ def _sample_sources(src_dir: Path, max_n: int, run_name: str) -> Path:
     """
     if max_n is None or max_n <= 0:
         return src_dir
-    target = UI_DATA_ROOT / run_name / "sources"
+    target = _run_path(UI_DATA_ROOT, run_name, "sources")
     if target.exists():
         shutil.rmtree(target, ignore_errors=True)
     target.mkdir(parents=True, exist_ok=True)
 
     files = sorted([p for p in src_dir.iterdir() if p.is_file()])[:max_n]
     for f in files:
-        shutil.copy2(f, target / f.name)
+        shutil.copy2(f, _contained(target, f.name))
     # Also copy any sidecars the readers might expect (very small)
     for f in sorted(src_dir.iterdir()):
         if (
@@ -525,7 +570,7 @@ def _sample_sources(src_dir: Path, max_n: int, run_name: str) -> Path:
             and f not in files
             and len(files) < max_n + 3
         ):
-            shutil.copy2(f, target / f.name)  # tiny sidecars for readers
+            shutil.copy2(f, _contained(target, f.name))  # tiny sidecars for readers
     _append_log(f"[ui] Sampled {len(files)} source files -> {target}")
     return target
 
@@ -636,7 +681,7 @@ def _build_provider_config(req: LaunchRequest) -> Any:
 
     cache = (
         ProviderCacheConfig(
-            root_path=Path(p.get("cache", {}).get("root_path", ".cache/axiom/providers")).resolve(),
+            root_path=_user_path(p.get("cache", {}).get("root_path", ".cache/axiom/providers")),
             mode=p.get("cache", {}).get("mode", "live"),
         )
         if HAS_CORE
@@ -778,7 +823,7 @@ def _full_arm_ids() -> list[str]:
 
 
 def _prepare_run_dirs(run_name: str) -> tuple[Path, Path]:
-    run_dir = RUNS_ROOT / run_name
+    run_dir = _run_path(RUNS_ROOT, run_name)
     run_dir.mkdir(parents=True, exist_ok=True)
     wizard = run_dir / "wizard_configs"
     wizard.mkdir(exist_ok=True)
@@ -816,7 +861,7 @@ def _run_full_remote(req: LaunchRequest, stop_event: threading.Event) -> Path:  
     """Non-interactive remote cascade full pipeline. Mirrors CLI but callable from UI."""
     run_name = req.run_name or f"ui_remote_{int(time.time())}"
     _set_stage("sampling", run_name)
-    src = Path(req.corpus.input_path).expanduser().resolve()
+    src = _user_path(req.corpus.input_path)
     sampled = _sample_sources(src, req.data_budget.max_sources or 0, run_name)
 
     run_dir, wizard_dir = _prepare_run_dirs(run_name)
@@ -937,7 +982,7 @@ def _run_integrated(req: LaunchRequest, stop_event: threading.Event) -> Path:  #
 
     run_name = req.run_name or f"ui_integrated_{int(time.time())}"
     _set_stage("sampling", run_name)
-    src = Path(req.corpus.input_path).expanduser().resolve()
+    src = _user_path(req.corpus.input_path)
     sampled = _sample_sources(src, req.data_budget.max_sources or 0, run_name)
 
     run_dir, wizard_dir = _prepare_run_dirs(run_name)
@@ -1183,7 +1228,7 @@ async def attach_run(payload: dict[str, Any]) -> JSONResponse:
     run_name = payload.get("run_name")
     if not run_name:
         raise HTTPException(400, "run_name required")
-    rd = RUNS_ROOT / run_name
+    rd = _run_path(RUNS_ROOT, run_name)
     if not rd.exists():
         raise HTTPException(404, "run not found")
     with _job_lock:
@@ -1225,7 +1270,7 @@ def _build_e_run_config(req: ERunRequest, run_name: str) -> Path:
         cfg["micro_batch_size"] = mb
         cfg["global_batch_size"] = mb
         cfg["gradient_accumulation_steps"] = 1
-    run_dir = RUNS_ROOT / run_name
+    run_dir = _run_path(RUNS_ROOT, run_name)
     run_dir.mkdir(parents=True, exist_ok=True)
     derived = run_dir / "e_run.yaml"
     derived.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
@@ -1323,7 +1368,7 @@ async def launch_e(req: ERunRequest) -> JSONResponse:
 @app.post("/api/config/prepare")
 async def prepare_config(req: LaunchRequest) -> JSONResponse:
     run_name = req.run_name or f"ui_preview_{int(time.time())}"
-    src = Path(req.corpus.input_path).expanduser().resolve()
+    src = _user_path(req.corpus.input_path)
     sampled = (
         _sample_sources(src, req.data_budget.max_sources or 0, run_name)
         if req.data_budget.max_sources
@@ -1411,8 +1456,14 @@ async def api_local_models() -> JSONResponse:
             }
         )
     except Exception as e:
+        # Full details go to the server log; the response only says that the scan failed.
+        _append_log(f"[ui] local model scan failed: {e}")
         return JSONResponse(
-            {"cached": [], "suggestions": ["Qwen/Qwen2.5-3B-Instruct-GGUF"], "error": str(e)}
+            {
+                "cached": [],
+                "suggestions": ["Qwen/Qwen2.5-3B-Instruct-GGUF"],
+                "error": "local model scan failed (details in the server log)",
+            }
         )
 
 
@@ -1458,7 +1509,7 @@ async def api_harvest(payload: dict | None = Body(default=None)) -> JSONResponse
                     title = w.get("title", f"result-{i}")
                     url = w.get("url", "")
                     desc = w.get("description", "")
-                    p = out_dir / f"brave_{i:02d}_{_safe(title)}.md"
+                    p = _contained(out_dir, f"brave_{i:02d}_{_safe(title)}.md")
                     meta = {
                         "title": title,
                         "source_url": url,
@@ -1470,12 +1521,13 @@ async def api_harvest(payload: dict | None = Body(default=None)) -> JSONResponse
                         f"---\n{json.dumps(meta, indent=2)}\n---\n\n# {title}\n\n{desc}\n\nSource: {url}\n",  # noqa: E501
                         encoding="utf-8",
                     )
-                    (out_dir / f"brave_{i:02d}_{_safe(title)}.json").write_text(
+                    _contained(out_dir, f"brave_{i:02d}_{_safe(title)}.json").write_text(
                         json.dumps(meta, indent=2)
                     )
                     items.append({"title": title, "url": url, "saved": str(p)})
             except Exception as ex:
-                err = f"brave failed: {ex}"
+                _append_log(f"[ui] brave search failed: {ex}")
+                err = "brave search failed (details in the server log)"
 
     if tool in ("firecrawl", "scrape") and not err:
         try:
@@ -1491,7 +1543,7 @@ async def api_harvest(payload: dict | None = Body(default=None)) -> JSONResponse
                     res = app.scrape_url(t, params={"formats": ["markdown", "html"]})
                     md = res.get("markdown") or res.get("content") or ""
                     title = (res.get("metadata") or {}).get("title", t.split("/")[-1])
-                    p = out_dir / f"firecrawl_{i:02d}_{_safe(title)}.md"
+                    p = _contained(out_dir, f"firecrawl_{i:02d}_{_safe(title)}.md")
                     meta = {
                         "title": title,
                         "source_url": t,
@@ -1501,29 +1553,34 @@ async def api_harvest(payload: dict | None = Body(default=None)) -> JSONResponse
                     p.write_text(
                         f"---\n{json.dumps(meta, indent=2)}\n---\n\n{md}\n", encoding="utf-8"
                     )
-                    (out_dir / f"firecrawl_{i:02d}_{_safe(title)}.json").write_text(
+                    _contained(out_dir, f"firecrawl_{i:02d}_{_safe(title)}.json").write_text(
                         json.dumps(meta)
                     )
                     items.append({"title": title, "url": t, "saved": str(p)})
                 except Exception as ex:
-                    items.append({"title": t, "error": str(ex)})
+                    _append_log(f"[ui] firecrawl scrape failed for {t}: {ex}")
+                    items.append({"title": t, "error": "scrape failed (details in the server log)"})
         except ImportError:
             err = "firecrawl-py not installed. Run: uv pip install firecrawl-py"
         except Exception as ex:
-            err = f"firecrawl error: {ex}"
+            _append_log(f"[ui] firecrawl error: {ex}")
+            err = "firecrawl error (details in the server log)"
 
     if tool == "fetch" and urls:
         for i, u in enumerate(urls[:count]):
             try:
                 raw = read_public_http_text(u, timeout=12)
                 title = u.split("/")[-1] or f"page-{i}"
-                p = out_dir / f"fetched_{i:02d}_{_safe(title)}.txt"
+                p = _contained(out_dir, f"fetched_{i:02d}_{_safe(title)}.txt")
                 meta = {"title": title, "source_url": u, "provider": "fetch", "query": query}
                 p.write_text(f"---\n{json.dumps(meta, indent=2)}\n---\n\n{raw}\n")
-                (out_dir / f"fetched_{i:02d}_{_safe(title)}.json").write_text(json.dumps(meta))
+                _contained(out_dir, f"fetched_{i:02d}_{_safe(title)}.json").write_text(
+                    json.dumps(meta)
+                )
                 items.append({"title": title, "url": u, "saved": str(p)})
             except Exception as ex:
-                items.append({"url": u, "error": str(ex)})
+                _append_log(f"[ui] fetch failed for {u}: {ex}")
+                items.append({"url": u, "error": "fetch failed (details in the server log)"})
 
     manifest = {"tool": tool, "query": query, "count": len(items), "created": ts, "items": items}
     (out_dir / "harvest_manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -1549,7 +1606,7 @@ async def status() -> JSONResponse:
     snap = _get_job_snapshot()
     # enrich with FS if monitoring
     if snap.run_name:
-        rd = RUNS_ROOT / snap.run_name
+        rd = _run_path(RUNS_ROOT, snap.run_name)
         if rd.exists():
             snap = snap.model_copy(update={"run_dir": str(rd)})
 
@@ -1857,7 +1914,7 @@ def _parse_geometry_impact(arm_summaries: dict[str, Any]) -> dict[str, Any]:
 
 def build_run_analysis(run_name: str) -> dict[str, Any]:
     """Produce a rich, consolidated analysis dict for the UI from finished artifacts only."""
-    rd = RUNS_ROOT / run_name
+    rd = _run_path(RUNS_ROOT, run_name)
     if not rd.exists():
         return {"run_name": run_name, "error": "not found"}
 
@@ -1918,7 +1975,7 @@ async def get_run_analysis(run_name: str) -> JSONResponse:
 
 @app.get("/api/runs/{run_name}/verdict")
 async def get_verdict(run_name: str) -> JSONResponse:
-    rd = RUNS_ROOT / run_name
+    rd = _run_path(RUNS_ROOT, run_name)
     vpath = rd / "verdict" / "report.md"
     if not vpath.exists():
         raise HTTPException(404, "no verdict")
