@@ -1187,6 +1187,8 @@ async def launch(req: LaunchRequest) -> JSONResponse:
         req.run_name = (
             req.run_name or f"ui_{req.mode}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         )
+        _run_path(RUNS_ROOT, req.run_name)  # refuse a bad run name before the job starts
+        _user_path(req.corpus.input_path)  # and a corpus path outside the allowed roots
         t = threading.Thread(target=_pipeline_worker, args=(req, stop_ev), daemon=True)
         _current_job["thread"] = t
         _current_job["stop_event"] = stop_ev
@@ -1350,6 +1352,7 @@ async def launch_e(req: ERunRequest) -> JSONResponse:
             raise HTTPException(409, "A job is already running. Stop it first.")
         stop_ev = threading.Event()
         req.run_name = req.run_name or f"e_run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        _run_path(RUNS_ROOT, req.run_name)  # refuse a bad run name before the job starts
         t = threading.Thread(target=_run_e_training, args=(req, stop_ev), daemon=True)
         _current_job["thread"] = t
         _current_job["stop_event"] = stop_ev
@@ -1606,8 +1609,11 @@ async def status() -> JSONResponse:
     snap = _get_job_snapshot()
     # enrich with FS if monitoring
     if snap.run_name:
-        rd = _run_path(RUNS_ROOT, snap.run_name)
-        if rd.exists():
+        try:
+            rd: Path | None = _run_path(RUNS_ROOT, snap.run_name)
+        except HTTPException:
+            rd = None  # a stale or bad name in the job state must not break status polling
+        if rd is not None and rd.exists():
             snap = snap.model_copy(update={"run_dir": str(rd)})
 
     payload = snap.model_dump()
