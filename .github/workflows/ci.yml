@@ -11,8 +11,10 @@ on:
 
 jobs:
   quality:
-    # Pull requests from forks never run on the self-hosted runners.
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('{"group":"Default","labels":["self-hosted","linux","x64"]}') }}
+    # Runner comes from the org/repo variable CI_RUNNER (self-hosted label) and falls back to
+    # GitHub-hosted. Fork PRs always use GitHub-hosted runners. Public repos use them too
+    # (the self-hosted runner group serves private repos only), unless CI_RUNNER_PUBLIC is 'true'.
+    runs-on: ${{ (github.event.repository.private || vars.CI_RUNNER_PUBLIC == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
 
