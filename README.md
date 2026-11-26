@@ -62,6 +62,10 @@ Python >=3.14,<3.15
 
 uv is the recommended package manager (the project uses PEP 735 / uv.lock).
 
+### Names
+
+Axiom is the public name of the project. `hcaps` is the internal Python import package name, and `axiom` is the command-line interface. The internal package name does not change the project's public name.
+
 ### Development setup (uv)
 
 ```bash
@@ -104,6 +108,8 @@ axiom --help
 ```
 
 ### CLI troubleshooting: "No module named 'hcaps'"
+
+Here, `hcaps` refers to the internal Python import package; the public project name is Axiom (see [Names](#names)).
 
 If you see:
 
@@ -314,8 +320,6 @@ Start with:
 - [docs/concept/AXT_RUNTIME_DATA_INTERFACE.md](docs/concept/AXT_RUNTIME_DATA_INTERFACE.md)
 - [spec/AXF_V1.md](spec/AXF_V1.md)
 - [docs/README.md](docs/README.md)
-
-The internal Python package is still named `hcaps` for legacy compatibility. Public documentation should use Axiom terminology.
 
 ## Contributing
 
