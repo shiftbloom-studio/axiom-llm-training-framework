@@ -39,8 +39,17 @@ def save_model_checkpoint(
 
 def load_model_checkpoint(
     path: str | Path,
+    *,
+    trusted: bool = False,
 ) -> tuple[torch.nn.Module, AxiomModelConfig, dict[str, Any]]:
-    payload = torch.load(Path(path), map_location="cpu", weights_only=False)
+    """Load a model checkpoint.
+
+    By default only tensors and plain containers are unpickled (``weights_only=True``).
+    Pass ``trusted=True`` to allow arbitrary pickled objects; only do that for
+    checkpoints from a source you trust, since unpickling can run code.
+    """
+
+    payload = torch.load(Path(path), map_location="cpu", weights_only=not trusted)
     config = AxiomModelConfig.model_validate(payload["config"])
     model = AxiomStructuredModel(config)
     model.load_state_dict(payload["state_dict"])

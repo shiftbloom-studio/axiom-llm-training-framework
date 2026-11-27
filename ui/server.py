@@ -37,7 +37,7 @@ import threading
 import time
 from collections import deque
 from contextlib import suppress
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -438,7 +438,7 @@ def _persist_current_job(run_name: str | None, stage: str, start_time: str | Non
             data = {
                 "run_name": run_name,
                 "stage": stage,
-                "started_at": start_time or datetime.utcnow().isoformat() + "Z",
+                "started_at": start_time or datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "is_large_scale": "large" in stage
                 or True,  # we don't have the req here, approximate
             }
@@ -1185,7 +1185,7 @@ async def launch(req: LaunchRequest) -> JSONResponse:
             )
         stop_ev = threading.Event()
         req.run_name = (
-            req.run_name or f"ui_{req.mode}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+            req.run_name or f"ui_{req.mode}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
         )
         _run_path(RUNS_ROOT, req.run_name)  # refuse a bad run name before the job starts
         _user_path(req.corpus.input_path)  # and a corpus path outside the allowed roots
@@ -1196,7 +1196,7 @@ async def launch(req: LaunchRequest) -> JSONResponse:
         _current_job["stage"] = "starting"
         _current_job["run_name"] = req.run_name
         t.start()
-    start_iso = datetime.utcnow().isoformat() + "Z"
+    start_iso = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     _persist_current_job(
         req.run_name,
         "starting-large-scale" if req.training.profile in ("large", "custom") else "starting",
@@ -1351,7 +1351,7 @@ async def launch_e(req: ERunRequest) -> JSONResponse:
         if _current_job.get("thread"):
             raise HTTPException(409, "A job is already running. Stop it first.")
         stop_ev = threading.Event()
-        req.run_name = req.run_name or f"e_run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        req.run_name = req.run_name or f"e_run_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
         _run_path(RUNS_ROOT, req.run_name)  # refuse a bad run name before the job starts
         t = threading.Thread(target=_run_e_training, args=(req, stop_ev), daemon=True)
         _current_job["thread"] = t
@@ -1360,7 +1360,9 @@ async def launch_e(req: ERunRequest) -> JSONResponse:
         _current_job["stage"] = "starting"
         _current_job["run_name"] = req.run_name
         t.start()
-    _persist_current_job(req.run_name, "starting", datetime.utcnow().isoformat() + "Z")
+    _persist_current_job(
+        req.run_name, "starting", datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    )
     _append_log(f"[ui] Launched arm-E run as {req.run_name}")
     return JSONResponse({"ok": True, "run_name": req.run_name})
 
@@ -1629,7 +1631,7 @@ async def status() -> JSONResponse:
                         try:
                             dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
                             elapsed = (
-                                datetime.utcnow().replace(tzinfo=dt.tzinfo) - dt
+                                datetime.now(UTC).replace(tzinfo=dt.tzinfo) - dt
                             ).total_seconds()
                             payload["elapsed_seconds"] = int(elapsed)
                             payload["elapsed_human"] = (
@@ -1968,7 +1970,7 @@ def build_run_analysis(run_name: str) -> dict[str, Any]:
         "geometry": geo,
         "insights": insights,
         "best_structured_proxy": best_structured,
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
 
 
