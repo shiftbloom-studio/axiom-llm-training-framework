@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -63,5 +63,5 @@ class TrainingBridgeManifest:
             max_length=max_length,
             include_side_channels=include_side_channels,
             record_count=record_count,
-            created_at=datetime.utcnow().isoformat() + "Z",
+            created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         )

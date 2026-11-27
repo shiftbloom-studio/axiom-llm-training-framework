@@ -1468,7 +1468,7 @@
             propsMeta: r && r.propsMeta || null,
             preview: r && r.preview || null
           },
-          "*"
+          document.referrer ? new URL(document.referrer).origin : window.location.origin
         );
       } catch {
       }

@@ -5,7 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
+from numpy._core.multiarray import _reconstruct
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -72,8 +74,28 @@ def save_training_checkpoint(
     return target
 
 
-def load_training_checkpoint(path: str | Path) -> dict[str, Any]:
-    payload = torch.load(Path(path), map_location="cpu", weights_only=False)
+# NumPy objects stored by ``capture_rng_state`` that are safe to unpickle.
+_CHECKPOINT_SAFE_GLOBALS: list[Any] = [
+    _reconstruct,
+    np.ndarray,
+    np.dtype,
+    type(np.dtype(np.uint32)),
+]
+
+
+def load_training_checkpoint(path: str | Path, *, trusted: bool = False) -> dict[str, Any]:
+    """Load a training checkpoint.
+
+    By default only tensors, plain containers and the NumPy RNG state are unpickled
+    (``weights_only=True``). Pass ``trusted=True`` to allow arbitrary pickled objects;
+    only do that for checkpoints from a source you trust, since unpickling can run code.
+    """
+
+    if trusted:
+        payload = torch.load(Path(path), map_location="cpu", weights_only=False)
+    else:
+        with torch.serialization.safe_globals(_CHECKPOINT_SAFE_GLOBALS):
+            payload = torch.load(Path(path), map_location="cpu", weights_only=True)
     if not isinstance(payload, dict):
         raise ValueError(f"checkpoint payload must be a mapping: {path}")
     return payload

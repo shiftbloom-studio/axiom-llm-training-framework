@@ -95,7 +95,6 @@ def transport_from_connection(connection: Tensor, *, operator: TransportOperator
         return connection
     if operator == TransportOperator.CAYLEY:
         identity = torch.eye(connection.shape[-1], dtype=connection.dtype, device=connection.device)
-        identity = identity.expand(connection.shape[0], -1, -1)
         return cast(
             Tensor,
             torch.linalg.solve(identity - 0.5 * connection, identity + 0.5 * connection),
