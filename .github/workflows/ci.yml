@@ -16,14 +16,14 @@ jobs:
     # (the self-hosted runner group serves private repos only), unless CI_RUNNER_PUBLIC is 'true'.
     runs-on: ${{ (github.event.repository.private || vars.CI_RUNNER_PUBLIC == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
 
-      - name: Create Python 3.14 environment
+      - name: Create Python 3.15 environment
         run: |
-          uv python install 3.14
+          uv python install 3.15
 
       - name: Install package (locked)
         run: |
